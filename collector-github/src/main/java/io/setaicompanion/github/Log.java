@@ -26,4 +26,12 @@ interface Log extends BasicLogger {
     @LogMessage(level = Logger.Level.INFO)
     @Message(id = 4, value = "GitHub: %d PR event(s) collected from %s")
     void collectionComplete(int count, String repoKey);
+
+    @LogMessage(level = Logger.Level.WARN)
+    @Message(id = 5, value = "Could not parse GitHub checkpoint, resetting: %s")
+    void checkpointParseError(String message);
+
+    @LogMessage(level = Logger.Level.WARN)
+    @Message(id = 6, value = "Could not serialise GitHub checkpoint: %s")
+    void checkpointSerialiseError(String message);
 }
