@@ -20,18 +20,10 @@ interface Log extends BasicLogger {
     void apiError(int status, String repoKey);
 
     @LogMessage(level = Logger.Level.INFO)
-    @Message(id = 3, value = "GitHub event: PR #%d [%s] %s by %s")
-    void prDetected(int prNumber, String repoKey, String title, String author);
-
-    @LogMessage(level = Logger.Level.WARN)
-    @Message(id = 4, value = "Could not parse GitHub checkpoint, resetting: %s")
-    void checkpointParseError(String message);
-
-    @LogMessage(level = Logger.Level.WARN)
-    @Message(id = 5, value = "Could not serialise GitHub checkpoint: %s")
-    void checkpointSerialiseError(String message);
+    @Message(id = 3, value = "GitHub PR event: #%d [%s] action=%s by %s")
+    void prDetected(int prNumber, String repoKey, String action, String author);
 
     @LogMessage(level = Logger.Level.INFO)
-    @Message(id = 6, value = "GitHub: %d new/updated PR(s) in %s")
+    @Message(id = 4, value = "GitHub: %d PR event(s) collected from %s")
     void collectionComplete(int count, String repoKey);
 }
