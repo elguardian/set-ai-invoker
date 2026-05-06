@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.setaicompanion</groupId>
+        <artifactId>set-ai-companion</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>agent-invoker-cli</artifactId>
+    <name>Set AI Companion :: Agent Invoker CLI</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.setaicompanion</groupId>
+            <artifactId>agent-invoker-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.setaicompanion</groupId>
+            <artifactId>state-filesystem</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.setaicompanion</groupId>
+            <artifactId>state-github</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.setaicompanion</groupId>
+            <artifactId>marshaller-json</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.setaicompanion</groupId>
+            <artifactId>collector-github</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.setaicompanion</groupId>
+            <artifactId>collector-jira</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.setaicompanion</groupId>
+            <artifactId>agent-claude</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.setaicompanion</groupId>
+            <artifactId>agent-ibm-bob</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jline</groupId>
+            <artifactId>jline</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.logging</groupId>
+            <artifactId>jboss-logging-annotations</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals><goal>shade</goal></goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <!-- sets Main-Class in MANIFEST.MF -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>io.setaicompanion.cli.CompanionCLI</mainClass>
+                                </transformer>
+                                <!--
+                                    Merges META-INF/services/ files from all dependency jars so
+                                    ServiceLoader can discover EventCollector and AgentService
+                                    implementations from github-collector, jira-collector,
+                                    claude-agent and ibm-bob-agent in the single uber-jar.
+                                -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

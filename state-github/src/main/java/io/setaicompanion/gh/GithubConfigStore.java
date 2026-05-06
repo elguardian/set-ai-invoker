@@ -1,0 +1,97 @@
+package io.setaicompanion.gh;
+
+import io.setaicompanion.store.ConfigStore;
+import io.setaicompanion.marshaller.ConfigMarshaller;
+import io.setaicompanion.model.EventSourceConfig;
+
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+public class GithubConfigStore implements ConfigStore {
+
+    private final GithubApi api = new GithubApi();
+
+    private final List<EventSourceConfig> entries = new ArrayList<>();
+    private GithubApi.Coords coords;
+    private String blobSha;
+    private ConfigMarshaller marshaller;
+
+    @Override
+    public String name() {
+        return "github";
+    }
+
+    @Override
+    public boolean supports(URI uri) {
+        return "https".equals(uri.getScheme()) && "github.com".equals(uri.getHost());
+    }
+
+    @Override
+    public void init(ConfigMarshaller marshaller) {
+        this.marshaller = marshaller;
+    }
+
+    @Override
+    public void load(URI uri) throws Exception {
+        this.coords = GithubApi.Coords.from(uri);
+        entries.clear();
+        blobSha = null;
+
+        GithubApi.FileContent fc = api.get(coords);
+        if (fc == null) {
+            Log.LOG.configFileNotFound(coords.owner(), coords.repo(), coords.branch(), coords.path());
+            return;
+        }
+
+        blobSha = fc.sha();
+        try {
+            List<EventSourceConfig> list = marshaller.unmarshalConfig(fc.content());
+            entries.addAll(list);
+        } catch (Exception e) {
+            Log.LOG.configParseError(e.getMessage());
+        }
+    }
+
+    @Override
+    public List<EventSourceConfig> entries() {
+        return List.copyOf(entries);
+    }
+
+    @Override
+    public void add(EventSourceConfig config) {
+        entries.add(config);
+    }
+
+    @Override
+    public boolean set(String eventType, String eventUrl, EventSourceConfig updated) {
+        for (int i = 0; i < entries.size(); i++) {
+            EventSourceConfig e = entries.get(i);
+            if (e.eventType().equals(eventType) && e.eventUrl().equals(eventUrl)) {
+                entries.set(i, updated);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean remove(String eventType, String eventUrl) {
+        return entries.removeIf(e ->
+            e.eventType().equals(eventType) && e.eventUrl().equals(eventUrl));
+    }
+
+    @Override
+    public Optional<EventSourceConfig> find(String eventType, String eventUrl) {
+        return entries.stream()
+            .filter(e -> e.eventType().equals(eventType) && e.eventUrl().equals(eventUrl))
+            .findFirst();
+    }
+
+    @Override
+    public void save() throws Exception {
+        byte[] content = marshaller.marshalConfig(entries);
+        api.put(coords, content, blobSha, "chore: update companion config");
+    }
+}
