@@ -1,19 +1,27 @@
 package io.setaicompanion.collector;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * An ordered collection of {@link Filter} predicates attached to an event source.
  * <p>
- * Values are extracted via the builder API:
+ * Values are extracted via typed builder methods:
  * <pre>
- *   // first match for key "project" (= operator)
+ *   // first = match, returned as String
  *   String p = filters.newStringValue("project").build().get();
  *
- *   // all values for key "project" where operator is =
+ *   // all = matches, returned as List&lt;String&gt;
  *   List&lt;String&gt; ps = filters.newStringValue("project").multiple().build().get();
+ *
+ *   // typed variants
+ *   Integer count = filters.newIntegerValue("count").build().get();
+ *   Long    ts    = filters.newLongValue("since").build().get();
+ *   LocalDate d   = filters.newDateValue("after").build().get();
  * </pre>
+ * Supported types for {@code multiple()}: String, Integer, Long, LocalDate.
  */
 public final class Filters {
 
@@ -42,50 +50,69 @@ public final class Filters {
         return filters.isEmpty();
     }
 
-    // ── Builder API ───────────────────────────────────────────────────────────
+    // ── Typed builder factory methods ─────────────────────────────────────────
 
-    public StringValueBuilder newStringValue(String key) {
-        return new StringValueBuilder(key);
+    public ValueBuilder<String> newStringValue(String key) {
+        return new ValueBuilder<>(key, s -> s);
     }
 
-    public final class StringValueBuilder {
+    public ValueBuilder<Integer> newIntegerValue(String key) {
+        return new ValueBuilder<>(key, Integer::parseInt);
+    }
 
-        private final String key;
+    public ValueBuilder<Long> newLongValue(String key) {
+        return new ValueBuilder<>(key, Long::parseLong);
+    }
 
-        StringValueBuilder(String key) {
-            this.key = key;
+    /** Parses ISO-8601 date strings ({@code yyyy-MM-dd}). */
+    public ValueBuilder<LocalDate> newDateValue(String key) {
+        return new ValueBuilder<>(key, LocalDate::parse);
+    }
+
+    // ── Generic builder ───────────────────────────────────────────────────────
+
+    public final class ValueBuilder<T> {
+
+        private final String           key;
+        private final Function<String, T> converter;
+
+        ValueBuilder(String key, Function<String, T> converter) {
+            this.key       = key;
+            this.converter = converter;
         }
 
-        /** Returns the value of the first {@code =} filter matching this key. */
-        public FilterValue<String> build() {
+        /** Returns the converted value of the first filter matching this key (any operator). */
+        public FilterValue<T> build() {
             return filters.stream()
-                .filter(f -> f.key().equals(key) && "=".equals(f.operator()))
+                .filter(f -> f.key().equals(key))
                 .findFirst()
-                .map(f -> new FilterValue<>(f.value()))
-                .orElse(new FilterValue<>(null));
+                .map(f -> new FilterValue<>(converter.apply(f.value()), f.operator()))
+                .orElse(new FilterValue<>(null, "="));
         }
 
-        /** Collects all {@code =} filter values for this key into a list. */
-        public MultipleBuilder multiple() {
-            return new MultipleBuilder(key);
+        /** Collects all {@code =} filter values for this key as a typed list. */
+        public MultipleValueBuilder<T> multiple() {
+            return new MultipleValueBuilder<>(key, converter);
         }
     }
 
-    public final class MultipleBuilder {
+    public final class MultipleValueBuilder<T> {
 
-        private final String key;
+        private final String              key;
+        private final Function<String, T> converter;
 
-        MultipleBuilder(String key) {
-            this.key = key;
+        MultipleValueBuilder(String key, Function<String, T> converter) {
+            this.key       = key;
+            this.converter = converter;
         }
 
-        /** Returns all {@code =} filter values for this key. Multiple requires operator {@code =}. */
-        public FilterValue<List<String>> build() {
-            List<String> values = filters.stream()
+        /** Returns all {@code =} filter values for this key as a typed list. */
+        public FilterValue<List<T>> build() {
+            List<T> values = filters.stream()
                 .filter(f -> f.key().equals(key) && "=".equals(f.operator()))
-                .map(Filter::value)
+                .map(f -> converter.apply(f.value()))
                 .toList();
-            return new FilterValue<>(values);
+            return new FilterValue<>(values, "in");
         }
     }
 
