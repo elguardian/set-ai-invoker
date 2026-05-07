@@ -9,6 +9,7 @@ import io.setaicompanion.cli.TerminalOutput;
 import io.setaicompanion.cli.command.CollectCommand;
 import io.setaicompanion.cli.command.CommandContext;
 import io.setaicompanion.cli.command.ConfigCommand;
+import io.setaicompanion.collector.Filters;
 import io.setaicompanion.store.ConfigStore;
 import io.setaicompanion.model.ApplicationEvent;
 import io.setaicompanion.model.EventSourceConfig;
@@ -17,7 +18,6 @@ import org.jline.terminal.Terminal;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class BatchCLI implements RunnerCLI {
 
@@ -76,7 +76,7 @@ public class BatchCLI implements RunnerCLI {
             CLIOptions.ConfigAddOptions a = options.configAdd();
             config.add(new EventSourceConfig(
                 a.eventType(), a.eventUrl(), a.eventUser(),
-                a.eventApiToken(), a.eventPassword(), Map.of()));
+                a.eventApiToken(), a.eventPassword(), Filters.empty()));
             ctx.saveConfig(config);
             out.info("Added: type=" + a.eventType() + " url=" + a.eventUrl());
             return 0;
@@ -106,7 +106,7 @@ public class BatchCLI implements RunnerCLI {
             EventSourceConfig src = config.find(options.collectType(), options.collectUrl())
                 .orElse(new EventSourceConfig(
                     options.collectType(), options.collectUrl(), null,
-                    env("API_TOKEN", ""), null, Map.of()));
+                    env("API_TOKEN", ""), null, Filters.empty()));
             sources = List.of(src);
             if (options.overrideCheckpoint() != null) {
                 state.setCheckpoint(options.collectType(), options.collectUrl(),

@@ -1,6 +1,6 @@
 package io.setaicompanion.model;
 
-import java.util.Map;
+import io.setaicompanion.collector.Filters;
 
 /**
  * One entry in the configuration file describing a monitored event source.
@@ -8,19 +8,19 @@ import java.util.Map;
  * {@code event-user}, {@code event-api-token}, and {@code event-password} accept
  * either a literal value or an environment-variable reference in the form {@code ${VAR_NAME}}.
  * <p>
- * {@code event-filter} is an opaque JSON object whose structure is defined by each
- * collector implementation. The CLI populates it via {@code config filter <type> <url>}.
+ * {@code event-filter} holds collector-specific filter predicates set via
+ * {@code config filter <type> <url>}.
  */
 public record EventSourceConfig(
-    String eventType,
-    String eventUrl,
-    String eventUser,
-    String eventApiToken,
-    String eventPassword,
-    Map<String, Object> eventFilter
+    String  eventType,
+    String  eventUrl,
+    String  eventUser,
+    String  eventApiToken,
+    String  eventPassword,
+    Filters eventFilter
 ) {
     public EventSourceConfig {
-        eventFilter = eventFilter == null ? Map.of() : Map.copyOf(eventFilter);
+        eventFilter = eventFilter == null ? Filters.empty() : eventFilter;
     }
 
     /** Returns the resolved value of {@code event-api-token}, expanding {@code ${VAR}} references. */

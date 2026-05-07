@@ -21,9 +21,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -43,23 +41,8 @@ public class JiraCollector implements EventCollector {
     }
 
     @Override
-    public String filterHelp() {
-        return "project=<KEY>  (repeatable) — restrict events to specific Jira project keys";
-    }
-
-    @Override
-    public Map<String, Object> parseFilter(List<String> tokens) {
-        List<String> projects = new ArrayList<>();
-        for (String tok : tokens) {
-            if (tok.startsWith("project=")) {
-                projects.add(tok.substring(8));
-            } else {
-                Log.LOG.unknownFilterToken(tok);
-            }
-        }
-        Map<String, Object> filter = new HashMap<>();
-        filter.put("projects", projects);
-        return filter;
+    public List<String> getFilterKeysSupported() {
+        return List.of("project");
     }
 
     @Override
@@ -92,13 +75,15 @@ public class JiraCollector implements EventCollector {
             return new EventsCollected(null, List.of());
         }
 
+        List<String> projectKeys = config.filter().newStringValue("project").multiple().build().get();
+
         List<ApplicationEvent> events = new ArrayList<>();
         long latestMs = sinceMs;
 
         for (AuditRecord record : audit.getRecords()) {
             long recordMs = parseMs(record.getCreated());
             if (recordMs > latestMs) latestMs = recordMs;
-            events.addAll(processRecord(record, projectKeys(config.filter())));
+            events.addAll(processRecord(record, projectKeys));
         }
 
         for (ApplicationEvent event : events) {
@@ -180,14 +165,5 @@ public class JiraCollector implements EventCollector {
             Log.LOG.timestampParseError(created);
             return System.currentTimeMillis();
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<String> projectKeys(Map<String, Object> filter) {
-        Object val = filter.get("projects");
-        if (val instanceof List<?> list) {
-            return list.stream().map(Object::toString).toList();
-        }
-        return List.of();
     }
 }

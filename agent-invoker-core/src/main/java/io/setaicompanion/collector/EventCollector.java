@@ -1,7 +1,6 @@
 package io.setaicompanion.collector;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Single-shot event collector. Fetches new events from a source since the last
@@ -25,21 +24,23 @@ public interface EventCollector {
     // ── Filter contract ───────────────────────────────────────────────────────
 
     /**
-     * Returns a human-readable description of the filter tokens this collector accepts
-     * in {@link #parseFilter(List)}.  Shown by the CLI {@code config filter} command.
-     * Default: no filter options.
+     * Returns the filter key names this collector accepts.
+     * Used by {@link FilterParser} for validation and by the CLI for help text.
+     * Default: no filters.
      */
-    default String filterHelp() {
-        return "(no filter options for type '" + getType() + "')";
+    default List<String> getFilterKeysSupported() {
+        return List.of();
     }
 
     /**
-     * Parses CLI filter tokens (e.g. {@code ["project=FOO", "project=BAR"]}) into
-     * the opaque filter map stored in {@link CollectorConfig#filter()}.
-     * The result is persisted in the config store under {@code event-filter}.
-     * Default: returns an empty map (no filtering).
+     * Returns a human-readable description of the filter keys this collector accepts.
+     * Shown by the CLI {@code config filter} command.
      */
-    default Map<String, Object> parseFilter(List<String> tokens) {
-        return Map.of();
+    default String filterHelp() {
+        List<String> keys = getFilterKeysSupported();
+        return keys.isEmpty()
+            ? "(no filter options for type '" + getType() + "')"
+            : "Supported filter keys: " + String.join(", ", keys)
+                + " — usage: key=value, key>=value, etc.";
     }
 }

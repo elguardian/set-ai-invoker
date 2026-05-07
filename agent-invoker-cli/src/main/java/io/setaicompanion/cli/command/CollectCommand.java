@@ -6,6 +6,7 @@ import io.setaicompanion.cli.Log;
 import io.setaicompanion.collector.CollectorConfig;
 import io.setaicompanion.collector.EventCollector;
 import io.setaicompanion.collector.EventsCollected;
+import io.setaicompanion.collector.Filters;
 import io.setaicompanion.store.ConfigStore;
 import io.setaicompanion.model.ApplicationEvent;
 import io.setaicompanion.model.EventSourceConfig;
@@ -13,7 +14,6 @@ import io.setaicompanion.store.StateStore;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class CollectCommand implements Command {
 
@@ -44,7 +44,7 @@ public class CollectCommand implements Command {
             }
             EventSourceConfig src = cfg.find(cType, cUrl)
                 .orElse(new EventSourceConfig(cType, cUrl, null,
-                    env("API_TOKEN", ""), null, Map.of()));
+                    env("API_TOKEN", ""), null, Filters.empty()));
             if (overrideCheckpoint != null) {
                 state.setCheckpoint(cType, cUrl, overrideCheckpoint);
             }

@@ -1,11 +1,12 @@
 package io.setaicompanion.cli.command;
 
 import io.setaicompanion.collector.EventCollector;
+import io.setaicompanion.collector.FilterParser;
+import io.setaicompanion.collector.Filters;
 import io.setaicompanion.store.ConfigStore;
 import io.setaicompanion.model.EventSourceConfig;
 
 import java.util.List;
-import java.util.Map;
 
 public class ConfigCommand implements Command {
 
@@ -59,7 +60,7 @@ public class ConfigCommand implements Command {
             ctx.out.warn("Usage: config add type=<type> url=<url> [user=<u>] [token=<t>] ...");
             return;
         }
-        cfg.add(new EventSourceConfig(type, url, user, token, password, Map.of()));
+        cfg.add(new EventSourceConfig(type, url, user, token, password, Filters.empty()));
         ctx.saveConfig(cfg);
         ctx.out.info("Added: " + type + " " + url);
     }
@@ -116,7 +117,7 @@ public class ConfigCommand implements Command {
             return true;
         }
 
-        Map<String, Object> filter = collector.parseFilter(tokens);
+        Filters filters = FilterParser.parse(collector.getFilterKeysSupported(), tokens);
         EventSourceConfig existing = cfg.find(type, url).orElse(null);
         if (existing == null) {
             ctx.out.warn("No config entry for " + type + " " + url
@@ -125,9 +126,9 @@ public class ConfigCommand implements Command {
         }
         cfg.set(type, url, new EventSourceConfig(
             existing.eventType(), existing.eventUrl(), existing.eventUser(),
-            existing.eventApiToken(), existing.eventPassword(), filter));
+            existing.eventApiToken(), existing.eventPassword(), filters));
         ctx.saveConfig(cfg);
-        ctx.out.info("Filter updated for " + type + " " + url + ": " + filter);
+        ctx.out.info("Filter updated for " + type + " " + url + ": " + filters);
         return true;
     }
 }
