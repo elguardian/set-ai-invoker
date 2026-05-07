@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import io.setaicompanion.collector.FilterParser;
 import io.setaicompanion.collector.Filters;
 import io.setaicompanion.marshaller.ConfigMarshaller;
-import io.setaicompanion.model.EventSourceConfig;
+import io.setaicompanion.model.ConfigData;
 
 import java.io.IOException;
 import java.util.List;
@@ -32,13 +32,13 @@ public class JsonConfigMarshaller implements ConfigMarshaller {
     }
 
     @Override
-    public byte[] marshalConfig(List<EventSourceConfig> entries) throws Exception {
-        return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsBytes(entries);
+    public byte[] marshalConfig(ConfigData data) throws Exception {
+        return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsBytes(data);
     }
 
     @Override
-    public List<EventSourceConfig> unmarshalConfig(byte[] bytes) throws Exception {
-        return MAPPER.readValue(bytes, new TypeReference<>() {});
+    public ConfigData unmarshalConfig(byte[] bytes) throws Exception {
+        return MAPPER.readValue(bytes, ConfigData.class);
     }
 
     // ── Filters serialization ─────────────────────────────────────────────────

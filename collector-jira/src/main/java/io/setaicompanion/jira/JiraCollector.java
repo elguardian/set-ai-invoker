@@ -8,7 +8,7 @@ import io.setaicompanion.jira.dto.AuditRecord;
 import io.setaicompanion.jira.dto.AuditRecordsResponse;
 import io.setaicompanion.jira.dto.ChangedValue;
 import io.setaicompanion.model.ApplicationEvent;
-import io.setaicompanion.model.JiraFieldChangeEvent;
+import io.setaicompanion.model.JiraEvent;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -87,7 +87,7 @@ public class JiraCollector implements EventCollector {
         }
 
         for (ApplicationEvent event : events) {
-            JiraFieldChangeEvent jira = (JiraFieldChangeEvent) event;
+            JiraEvent jira = (JiraEvent) event;
             Log.LOG.fieldChangeDetected(jira.issueKey(), jira.fieldName(),
                 jira.oldValue(), jira.newValue(), jira.changedBy());
         }
@@ -144,7 +144,7 @@ public class JiraCollector implements EventCollector {
 
         for (ChangedValue change : record.getChangedValues()) {
             if (!TRACKED_FIELDS.contains(change.getFieldName())) continue;
-            events.add(new JiraFieldChangeEvent(
+            events.add(new JiraEvent(
                 UUID.randomUUID().toString(),
                 ts,
                 issueKey,

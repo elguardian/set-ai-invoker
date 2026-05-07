@@ -3,7 +3,7 @@ package io.setaicompanion.cli;
 import io.setaicompanion.agent.AgentResponse;
 import io.setaicompanion.model.ApplicationEvent;
 import io.setaicompanion.model.EventSourceConfig;
-import io.setaicompanion.model.JiraFieldChangeEvent;
+import io.setaicompanion.model.JiraEvent;
 import io.setaicompanion.model.PullRequestEvent;
 import io.setaicompanion.model.StateEntry;
 import org.jline.terminal.Terminal;
@@ -48,7 +48,7 @@ public class TerminalOutput {
         String label = switch (event) {
             case PullRequestEvent pr ->
                 "PR #" + pr.prNumber() + " [" + pr.owner() + "/" + pr.repo() + "] " + pr.action();
-            case JiraFieldChangeEvent jira ->
+            case JiraEvent jira ->
                 jira.issueKey() + " — " + jira.fieldName() + ": " + jira.oldValue() + " → " + jira.newValue();
         };
         out.println(new AttributedStringBuilder()

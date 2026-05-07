@@ -27,15 +27,14 @@ public class ClaudeAgentService implements AgentService {
     }
 
     @Override
-    public AgentResponse process(ApplicationEvent event, Consumer<String> outputLine) {
-        String analysis = invokeClaudeCLI(outputLine);
+    public AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine) {
+        String analysis = invokeClaudeCLI(prompt != null ? prompt : "", outputLine);
         return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
     }
 
-    private String invokeClaudeCLI(Consumer<String> outputLine) {
+    private String invokeClaudeCLI(String prompt, Consumer<String> outputLine) {
         String command = System.getenv().getOrDefault("CLAUDE_COMMAND", "claude");
         String model   = System.getenv("CLAUDE_MODEL");
-        String prompt = "Use [agent-name] to [task]";
         try {
             List<String> args = Stream.of(command, "--verbose", "--print", "--output-format", "stream-json").collect(toCollection(ArrayList::new));
             if(model != null) {

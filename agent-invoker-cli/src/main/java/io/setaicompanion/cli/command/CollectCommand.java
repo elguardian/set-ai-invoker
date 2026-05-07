@@ -7,6 +7,7 @@ import io.setaicompanion.cli.Log;
 import io.setaicompanion.collector.CollectorConfig;
 import io.setaicompanion.collector.EventCollector;
 import io.setaicompanion.collector.EventsCollected;
+import io.setaicompanion.model.AgentConfig;
 import io.setaicompanion.model.ApplicationEvent;
 import io.setaicompanion.model.EventSourceConfig;
 import io.setaicompanion.store.ConfigStore;
@@ -16,7 +17,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Command(name = "collect", description = "Collect events and process with agent")
@@ -34,9 +34,6 @@ public class CollectCommand implements Runnable {
         ConfigStore cfg   = root.loadConfig();
         StateStore  state = root.loadState();
         if (cfg == null || state == null) return;
-
-        AgentService agent = root.findAgent();
-        if (agent == null) return;
 
         List<EventSourceConfig> sources;
         if (type != null && url != null) {
@@ -59,27 +56,34 @@ public class CollectCommand implements Runnable {
             return;
         }
 
-        List<ApplicationEvent> allEvents = new ArrayList<>();
+        AgentConfig agentConfig = cfg.agent();
+        AgentService agent = resolveAgent(agentConfig, root);
+        if (agent == null) return;
+        String prompt = agentConfig != null ? agentConfig.prompt() : null;
+
         for (EventSourceConfig src : sources) {
-            allEvents.addAll(collectSource(src, state, root));
-        }
+            List<ApplicationEvent> events = collectSource(src, state, root);
+            if (events.isEmpty()) continue;
 
-        if (allEvents.isEmpty()) {
-            root.out.info("No new events.");
-            return;
-        }
-
-        root.out.header("Processing " + allEvents.size() + " event(s) with " + agent.getName());
-        int i = 0;
-        for (ApplicationEvent event : allEvents) {
-            root.out.printEvent(++i, allEvents.size(), event);
-            try {
-                AgentResponse resp = agent.process(event, l -> root.out.agentLine(agent.getName(), l));
-                root.out.printResponse(resp);
-            } catch (Exception e) {
-                root.out.error("Agent error: " + e.getMessage());
+            root.out.header("Processing " + events.size() + " event(s) with " + agent.getName());
+            int i = 0;
+            for (ApplicationEvent event : events) {
+                root.out.printEvent(++i, events.size(), event);
+                try {
+                    AgentResponse resp = agent.process(event, prompt.replace("[event]", event.toString()), l -> root.out.agentLine(agent.getName(), l));
+                    root.out.printResponse(resp);
+                } catch (Exception e) {
+                    root.out.error("Agent error: " + e.getMessage());
+                }
             }
         }
+    }
+
+    private static AgentService resolveAgent(AgentConfig agentConfig, CompanionCLI root) {
+        if (agentConfig != null && agentConfig.implementation() != null) {
+            return root.findAgent(agentConfig.implementation());
+        }
+        return root.findAgent();
     }
 
     static List<ApplicationEvent> collectSource(EventSourceConfig src, StateStore state, CompanionCLI root) {

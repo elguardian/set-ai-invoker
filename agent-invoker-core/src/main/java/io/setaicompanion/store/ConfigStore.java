@@ -1,6 +1,7 @@
 package io.setaicompanion.store;
 
 import io.setaicompanion.marshaller.ConfigMarshaller;
+import io.setaicompanion.model.AgentConfig;
 import io.setaicompanion.model.EventSourceConfig;
 
 import java.net.URI;
@@ -27,7 +28,13 @@ public interface ConfigStore {
     /** Initialises this store from {@code uri}. Must be called after {@link #init}. */
     void load(URI uri) throws Exception;
 
-    // ── Data methods ──────────────────────────────────────────────────────────
+    // ── Agent config ──────────────────────────────────────────────────────────
+
+    AgentConfig agent();
+
+    void setAgent(AgentConfig agent);
+
+    // ── Source entries ────────────────────────────────────────────────────────
 
     List<EventSourceConfig> entries();
 

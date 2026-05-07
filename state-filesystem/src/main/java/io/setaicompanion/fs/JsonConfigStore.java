@@ -2,6 +2,8 @@ package io.setaicompanion.fs;
 
 import io.setaicompanion.store.ConfigStore;
 import io.setaicompanion.marshaller.ConfigMarshaller;
+import io.setaicompanion.model.AgentConfig;
+import io.setaicompanion.model.ConfigData;
 import io.setaicompanion.model.EventSourceConfig;
 
 import java.net.URI;
@@ -15,6 +17,7 @@ import java.util.Optional;
 public class JsonConfigStore implements ConfigStore {
 
     private final List<EventSourceConfig> entries = new ArrayList<>();
+    private AgentConfig agentConfig;
     private URI uri;
     private ConfigMarshaller marshaller;
 
@@ -38,15 +41,24 @@ public class JsonConfigStore implements ConfigStore {
     public void load(URI uri) throws Exception {
         this.uri = uri;
         entries.clear();
+        agentConfig = null;
         Path file = toPath(uri);
         if (Files.exists(file)) {
             try {
-                entries.addAll(marshaller.unmarshalConfig(Files.readAllBytes(file)));
+                ConfigData data = marshaller.unmarshalConfig(Files.readAllBytes(file));
+                agentConfig = data.agent();
+                entries.addAll(data.sources());
             } catch (Exception e) {
                 Log.LOG.configReadError(file.toString(), e.getMessage());
             }
         }
     }
+
+    @Override
+    public AgentConfig agent() { return agentConfig; }
+
+    @Override
+    public void setAgent(AgentConfig agent) { this.agentConfig = agent; }
 
     @Override
     public List<EventSourceConfig> entries() {
@@ -88,7 +100,7 @@ public class JsonConfigStore implements ConfigStore {
         Path file = toPath(uri);
         Path parent = file.getParent();
         if (parent != null) Files.createDirectories(parent);
-        byte[] bytes = marshaller.marshalConfig(entries);
+        byte[] bytes = marshaller.marshalConfig(new ConfigData(agentConfig, entries));
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
         Files.write(tmp, bytes);
         Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);

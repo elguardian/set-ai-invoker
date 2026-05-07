@@ -3,7 +3,7 @@ package io.setaicompanion.ibm;
 import io.setaicompanion.agent.AgentResponse;
 import io.setaicompanion.agent.AgentService;
 import io.setaicompanion.model.ApplicationEvent;
-import io.setaicompanion.model.JiraFieldChangeEvent;
+import io.setaicompanion.model.JiraEvent;
 import io.setaicompanion.model.PullRequestEvent;
 
 import java.io.BufferedReader;
@@ -27,9 +27,9 @@ public class IBMBobAgentService implements AgentService {
     }
 
     @Override
-    public AgentResponse process(ApplicationEvent event, Consumer<String> outputLine) {
-        String prompt = buildPrompt(event);
-        String analysis = invokeIBMCLI(prompt, outputLine);
+    public AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine) {
+        String effectivePrompt = prompt != null ? prompt : buildPrompt(event);
+        String analysis = invokeIBMCLI(effectivePrompt, outputLine);
         return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
     }
 
@@ -105,7 +105,7 @@ public class IBMBobAgentService implements AgentService {
                 URL        : %s
                 """.formatted(pr.owner(), pr.repo(), pr.prNumber(), pr.action(), pr.url());
 
-            case JiraFieldChangeEvent jira -> """
+            case JiraEvent jira -> """
                 You are an AI assistant monitoring Jira issue changes. \
                 Fields pm_ack, dev_ack, qe_ack track team acknowledgments. \
                 Analyse this change and suggest follow-up actions.

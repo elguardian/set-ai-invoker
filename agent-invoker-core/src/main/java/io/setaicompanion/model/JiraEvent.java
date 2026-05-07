@@ -2,7 +2,7 @@ package io.setaicompanion.model;
 
 import java.time.Instant;
 
-public record JiraFieldChangeEvent(
+public record JiraEvent(
     String eventId,
     Instant timestamp,
     String issueKey,

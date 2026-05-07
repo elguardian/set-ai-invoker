@@ -17,5 +17,5 @@ public interface AgentService {
      * Processes an event, streaming each output line to {@code outputLine} as it arrives.
      * Returns the full accumulated analysis once the agent process completes.
      */
-    AgentResponse process(ApplicationEvent event, Consumer<String> outputLine);
+    AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine);
 }

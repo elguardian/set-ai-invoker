@@ -2,6 +2,8 @@ package io.setaicompanion.gh;
 
 import io.setaicompanion.store.ConfigStore;
 import io.setaicompanion.marshaller.ConfigMarshaller;
+import io.setaicompanion.model.AgentConfig;
+import io.setaicompanion.model.ConfigData;
 import io.setaicompanion.model.EventSourceConfig;
 
 import java.net.URI;
@@ -14,6 +16,7 @@ public class GithubConfigStore implements ConfigStore {
     private final GithubApi api = new GithubApi();
 
     private final List<EventSourceConfig> entries = new ArrayList<>();
+    private AgentConfig agentConfig;
     private GithubApi.Coords coords;
     private String blobSha;
     private ConfigMarshaller marshaller;
@@ -47,12 +50,19 @@ public class GithubConfigStore implements ConfigStore {
 
         blobSha = fc.sha();
         try {
-            List<EventSourceConfig> list = marshaller.unmarshalConfig(fc.content());
-            entries.addAll(list);
+            ConfigData data = marshaller.unmarshalConfig(fc.content());
+            agentConfig = data.agent();
+            entries.addAll(data.sources());
         } catch (Exception e) {
             Log.LOG.configParseError(e.getMessage());
         }
     }
+
+    @Override
+    public AgentConfig agent() { return agentConfig; }
+
+    @Override
+    public void setAgent(AgentConfig agent) { this.agentConfig = agent; }
 
     @Override
     public List<EventSourceConfig> entries() {
@@ -91,7 +101,7 @@ public class GithubConfigStore implements ConfigStore {
 
     @Override
     public void save() throws Exception {
-        byte[] content = marshaller.marshalConfig(entries);
+        byte[] content = marshaller.marshalConfig(new ConfigData(agentConfig, entries));
         api.put(coords, content, blobSha, "chore: update companion config");
     }
 }

@@ -4,6 +4,7 @@ import io.setaicompanion.cli.CompanionCLI;
 import io.setaicompanion.collector.EventCollector;
 import io.setaicompanion.collector.FilterParser;
 import io.setaicompanion.collector.Filters;
+import io.setaicompanion.model.AgentConfig;
 import io.setaicompanion.model.EventSourceConfig;
 import io.setaicompanion.store.ConfigStore;
 import picocli.CommandLine.Command;
@@ -22,7 +23,8 @@ import java.util.List;
         ConfigCommand.Add.class,
         ConfigCommand.Set.class,
         ConfigCommand.Remove.class,
-        ConfigCommand.Filter.class
+        ConfigCommand.Filter.class,
+        ConfigCommand.Agent.class
     },
     description = "Manage event source configuration"
 )
@@ -71,7 +73,7 @@ public class ConfigCommand implements Runnable {
         @ParentCommand ConfigCommand parent;
         @Parameters(index = "0", description = "Event type") String type;
         @Parameters(index = "1", description = "Source URL")  String url;
-        @Option(names = "--user",                   description = "Username")  String user;
+        @Option(names = "--user",                   description = "Username")   String user;
         @Option(names = {"--token", "--api-token"}, description = "API token") String token;
         @Option(names = "--password",               description = "Password")  String password;
         @Option(names = "--url",                    description = "New URL")   String newUrl;
@@ -143,6 +145,57 @@ public class ConfigCommand implements Runnable {
                 existing.eventApiToken(), existing.eventPassword(), filters));
             root.saveConfig(cfg);
             root.out.info("Filter updated for " + type + " " + url + ": " + filters);
+        }
+    }
+
+    @Command(
+        name = "agent",
+        subcommands = { Agent.Show.class, Agent.Set.class },
+        description = "Manage the agent configuration for this config store"
+    )
+    static class Agent implements Runnable {
+        @ParentCommand ConfigCommand parent;
+        @Spec CommandSpec spec;
+
+        @Override
+        public void run() { spec.commandLine().usage(parent.root.out.writer()); }
+
+        @Command(name = "show", description = "Print the current agent configuration")
+        static class Show implements Runnable {
+            @ParentCommand Agent agent;
+
+            @Override
+            public void run() {
+                ConfigStore cfg = agent.parent.root.loadConfig();
+                if (cfg == null) return;
+                AgentConfig ac = cfg.agent();
+                if (ac == null) {
+                    agent.parent.root.out.info("No agent configured.");
+                } else {
+                    agent.parent.root.out.info("implementation: " + ac.implementation());
+                    agent.parent.root.out.info("prompt        : " + ac.prompt());
+                }
+            }
+        }
+
+        @Command(name = "set", description = "Set the agent configuration")
+        static class Set implements Runnable {
+            @ParentCommand Agent agentCmd;
+            @Option(names = "--impl",   description = "Agent implementation name") String impl;
+            @Option(names = "--prompt", description = "Prompt to pass to the agent") String prompt;
+
+            @Override
+            public void run() {
+                CompanionCLI root = agentCmd.parent.root;
+                ConfigStore cfg = root.loadConfig();
+                if (cfg == null) return;
+                AgentConfig existing = cfg.agent();
+                String effectiveImpl   = impl   != null ? impl   : (existing != null ? existing.implementation() : null);
+                String effectivePrompt = prompt != null ? prompt : (existing != null ? existing.prompt()         : null);
+                cfg.setAgent(new AgentConfig(effectiveImpl, effectivePrompt));
+                root.saveConfig(cfg);
+                root.out.info("Agent updated: impl=" + effectiveImpl + " prompt=" + effectivePrompt);
+            }
         }
     }
 }

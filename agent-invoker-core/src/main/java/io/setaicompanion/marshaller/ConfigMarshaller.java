@@ -1,19 +1,17 @@
 package io.setaicompanion.marshaller;
 
-import io.setaicompanion.model.EventSourceConfig;
-
-import java.util.List;
+import io.setaicompanion.model.ConfigData;
 
 /**
  * Pluggable config marshaller discovered by {@link java.util.ServiceLoader}.
- * Converts {@link EventSourceConfig} lists to/from a byte representation for storage.
+ * Converts {@link ConfigData} (agent config + event sources) to/from a byte representation.
  */
 public interface ConfigMarshaller {
 
     /** Short identifier, e.g. {@code "json"}. */
     String name();
 
-    byte[] marshalConfig(List<EventSourceConfig> entries) throws Exception;
+    byte[] marshalConfig(ConfigData data) throws Exception;
 
-    List<EventSourceConfig> unmarshalConfig(byte[] bytes) throws Exception;
+    ConfigData unmarshalConfig(byte[] bytes) throws Exception;
 }

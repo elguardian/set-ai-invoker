@@ -165,11 +165,15 @@ public class CompanionCLI implements Runnable {
     }
 
     public AgentService findAgent() {
+        return findAgent(agentName);
+    }
+
+    public AgentService findAgent(String name) {
         return service.agents().stream()
-            .filter(a -> a.getName().equalsIgnoreCase(agentName))
+            .filter(a -> a.getName().equalsIgnoreCase(name))
             .findFirst()
             .orElseGet(() -> {
-                out.error("No AgentService found with name '" + agentName + "'. Available: "
+                out.error("No AgentService found with name '" + name + "'. Available: "
                     + service.agents().stream().map(AgentService::getName).toList());
                 return null;
             });
