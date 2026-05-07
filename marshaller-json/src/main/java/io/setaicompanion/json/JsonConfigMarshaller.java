@@ -59,7 +59,7 @@ public class JsonConfigMarshaller implements ConfigMarshaller {
                 throws IOException {
             gen.writeStartArray();
             for (var f : filters.all()) {
-                gen.writeString(f.key() + f.operator() + f.value());
+                gen.writeString(f.key() + f.operator().symbol() + f.value());
             }
             gen.writeEndArray();
         }

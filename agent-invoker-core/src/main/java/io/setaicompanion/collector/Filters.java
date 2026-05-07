@@ -10,10 +10,12 @@ import java.util.function.Function;
  * <p>
  * Values are extracted via typed builder methods:
  * <pre>
- *   // first = match, returned as String
- *   String p = filters.newStringValue("project").build().get();
+ *   // first match for key (any operator)
+ *   FilterValue&lt;String&gt; fv = filters.newStringValue("project").build();
+ *   String p = fv.get();
+ *   FilterOperator op = fv.operator();
  *
- *   // all = matches, returned as List&lt;String&gt;
+ *   // all = matches, returned as List&lt;String&gt; with operator IN
  *   List&lt;String&gt; ps = filters.newStringValue("project").multiple().build().get();
  *
  *   // typed variants
@@ -21,7 +23,6 @@ import java.util.function.Function;
  *   Long    ts    = filters.newLongValue("since").build().get();
  *   LocalDate d   = filters.newDateValue("after").build().get();
  * </pre>
- * Supported types for {@code multiple()}: String, Integer, Long, LocalDate.
  */
 public final class Filters {
 
@@ -73,7 +74,7 @@ public final class Filters {
 
     public final class ValueBuilder<T> {
 
-        private final String           key;
+        private final String              key;
         private final Function<String, T> converter;
 
         ValueBuilder(String key, Function<String, T> converter) {
@@ -87,10 +88,10 @@ public final class Filters {
                 .filter(f -> f.key().equals(key))
                 .findFirst()
                 .map(f -> new FilterValue<>(converter.apply(f.value()), f.operator()))
-                .orElse(new FilterValue<>(null, "="));
+                .orElse(new FilterValue<>(null, null));
         }
 
-        /** Collects all {@code =} filter values for this key as a typed list. */
+        /** Collects all {@link FilterOperator#EQ} filter values for this key as a typed list. */
         public MultipleValueBuilder<T> multiple() {
             return new MultipleValueBuilder<>(key, converter);
         }
@@ -106,13 +107,13 @@ public final class Filters {
             this.converter = converter;
         }
 
-        /** Returns all {@code =} filter values for this key as a typed list. */
+        /** Returns all {@link FilterOperator#EQ} filter values for this key as a typed list. */
         public FilterValue<List<T>> build() {
             List<T> values = filters.stream()
-                .filter(f -> f.key().equals(key) && "=".equals(f.operator()))
+                .filter(f -> f.key().equals(key) && FilterOperator.EQ == f.operator())
                 .map(f -> converter.apply(f.value()))
                 .toList();
-            return new FilterValue<>(values, "in");
+            return new FilterValue<>(values, FilterOperator.IN);
         }
     }
 

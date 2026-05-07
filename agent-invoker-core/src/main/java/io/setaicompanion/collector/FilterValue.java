@@ -3,10 +3,10 @@ package io.setaicompanion.collector;
 /** The typed result produced by a {@link Filters} builder. */
 public final class FilterValue<T> {
 
-    private final T      value;
-    private final String operator;
+    private final T               value;
+    private final FilterOperator  operator;
 
-    FilterValue(T value, String operator) {
+    FilterValue(T value, FilterOperator operator) {
         this.value    = value;
         this.operator = operator;
     }
@@ -17,10 +17,10 @@ public final class FilterValue<T> {
     }
 
     /**
-     * Returns the operator of the matched filter ({@code =}, {@code <}, {@code >},
-     * {@code <=}, {@code >=}), or {@code null} when no filter was found.
+     * Returns the operator of the matched filter, or {@code null} when no filter was found.
+     * Always {@link FilterOperator#IN} for results produced by {@code multiple().build()}.
      */
-    public String operator() {
+    public FilterOperator operator() {
         return operator;
     }
 

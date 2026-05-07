@@ -16,7 +16,12 @@ import java.util.Set;
  */
 public final class FilterParser {
 
-    private static final List<String> OPERATOR_ORDER = List.of("<=", ">=", "<", ">", "=");
+    // Longest symbols first to avoid < matching before <=
+    private static final List<FilterOperator> PARSE_ORDER = List.of(
+        FilterOperator.LTE, FilterOperator.GTE,
+        FilterOperator.LT,  FilterOperator.GT,
+        FilterOperator.EQ
+    );
 
     private FilterParser() {}
 
@@ -42,11 +47,12 @@ public final class FilterParser {
     }
 
     private static Filter parseToken(String token) {
-        for (String op : OPERATOR_ORDER) {
-            int idx = token.indexOf(op);
+        for (FilterOperator op : PARSE_ORDER) {
+            String sym = op.symbol();
+            int idx = token.indexOf(sym);
             if (idx > 0) {
                 String key   = token.substring(0, idx).trim();
-                String value = token.substring(idx + op.length()).trim();
+                String value = token.substring(idx + sym.length()).trim();
                 if (!key.isEmpty() && !value.isEmpty()) {
                     return new Filter(key, op, value);
                 }
