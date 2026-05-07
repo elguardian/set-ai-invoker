@@ -15,9 +15,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -48,7 +50,7 @@ public class GitHubCollector implements EventCollector {
         // ── First page — use ETag for 304 optimisation ────────────────────────
         HttpRequest.Builder firstReq = HttpRequest.newBuilder()
             .uri(URI.create(repoApiUrl + "/events?per_page=100"))
-            .header("Authorization", "token " + config.apiToken())
+            .header("Authorization", basicAuth(config.apiToken()))
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
             .timeout(Duration.ofSeconds(30))
@@ -117,7 +119,7 @@ public class GitHubCollector implements EventCollector {
 
             HttpRequest nextReq = HttpRequest.newBuilder()
                 .uri(URI.create(nextUrl.get()))
-                .header("Authorization", "token " + config.apiToken())
+                .header("Authorization", basicAuth(config.apiToken()))
                 .header("Accept", "application/vnd.github+json")
                 .header("X-GitHub-Api-Version", "2022-11-28")
                 .timeout(Duration.ofSeconds(30))
@@ -133,6 +135,10 @@ public class GitHubCollector implements EventCollector {
 
         Log.LOG.collectionComplete(events.size(), repoKey);
         return new EventsCollected(new Checkpoint(nextEtag, maxId).serialize(), events);
+    }
+
+    private static String basicAuth(String token) {
+        return Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8));
     }
 
     private Optional<String> nextLink(HttpResponse<?> response) {

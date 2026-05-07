@@ -35,7 +35,8 @@ public record EventSourceConfig(
     private static String resolve(String value) {
         if (value == null) return null;
         if (value.startsWith("${") && value.endsWith("}")) {
-            return System.getenv(value.substring(2, value.length() - 1));
+            String property = value.substring(2, value.length() - 1);
+            return System.getenv(property);
         }
         return value;
     }

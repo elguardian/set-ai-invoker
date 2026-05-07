@@ -5,10 +5,8 @@ import io.setaicompanion.agent.AgentService;
 import io.setaicompanion.cli.command.AgentCommand;
 import io.setaicompanion.cli.command.CollectCommand;
 import io.setaicompanion.cli.command.ConfigCommand;
-import io.setaicompanion.cli.command.MarshallerCommand;
 import io.setaicompanion.cli.command.StateCommand;
 import io.setaicompanion.cli.command.StatusCommand;
-import io.setaicompanion.cli.command.StoreCommand;
 import io.setaicompanion.cli.runner.InteractiveCLI;
 import io.setaicompanion.collector.EventCollector;
 import io.setaicompanion.marshaller.MarshallerProvider;
@@ -21,7 +19,6 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ScopeType;
 import picocli.CommandLine.Spec;
 
 import java.net.URI;
@@ -32,8 +29,7 @@ import java.util.stream.Collectors;
     name = "companion",
     subcommands = {
         ConfigCommand.class, StateCommand.class, CollectCommand.class,
-        AgentCommand.class, MarshallerCommand.class, StoreCommand.class,
-        StatusCommand.class, CommandLine.HelpCommand.class
+        AgentCommand.class, StatusCommand.class, CommandLine.HelpCommand.class
     },
     mixinStandardHelpOptions = true,
     description = "Set AI Companion — event collection and AI processing"
@@ -41,22 +37,14 @@ import java.util.stream.Collectors;
 public class CompanionCLI implements Runnable {
 
     // @Option fields — nullable, applied to session state if non-null, reset to null each parse
-    @Option(names = "--config-uri", scope = ScopeType.INHERIT, description = "Config URI")
-    String configUriOpt;
+    @Option(names = "--store",      description = "Store implementation name") String storeOpt;
+    @Option(names = "--marshaller", description = "Marshaller implementation name") String marshallerOpt;
+    @Option(names = "--agent",      description = "Agent name") String agentOpt;
+    @Option(names = "--store-uri",
+        description = "Base storage folder (filesystem path or GitHub repo URL + path)")
+    String storeUriOpt;
 
-    @Option(names = "--state-uri", scope = ScopeType.INHERIT, description = "State URI")
-    String stateUriOpt;
-
-    @Option(names = "--store", scope = ScopeType.INHERIT, description = "Store implementation")
-    String storeOpt;
-
-    @Option(names = "--marshaller", scope = ScopeType.INHERIT, description = "Marshaller implementation")
-    String marshallerOpt;
-
-    @Option(names = "--agent", scope = ScopeType.INHERIT, description = "Agent name")
-    String agentOpt;
-
-    // Session state — NOT @Option, survives REPL iterations
+    // Session state — NOT @Option, set once at startup and never reset by Picocli
     public URI    configUri;
     public URI    stateUri;
     public String storeImpl;
@@ -74,42 +62,36 @@ public class CompanionCLI implements Runnable {
         this.service  = service;
         this.terminal = terminal;
         this.out      = new TerminalOutput(terminal);
-        this.configUri      = parseUri(env("CONFIG_URI", "./companion-config.json"));
-        this.stateUri       = parseUri(env("STATE_URI",  "./companion-state.json"));
-        this.storeImpl      = env("STORE_IMPL", null);
-        this.marshallerImpl = env("MARSHALLER",  null);
-        this.agentName      = env("AGENT",       "claude");
+        this.agentName = env("AGENT", "claude");
     }
 
     @Override
     public void run() {
-        spec.commandLine().usage(out.writer());
+        if (storeImpl == null || marshallerImpl == null || configUri == null) {
+            out.error("--store, --marshaller, and <uri> are required.");
+            spec.commandLine().usage(out.writer());
+            return;
+        }
+        new InteractiveCLI(this, spec.commandLine()).run();
     }
 
     void applyOptions() {
-        if (configUriOpt  != null) configUri      = parseUri(configUriOpt);
-        if (stateUriOpt   != null) stateUri        = parseUri(stateUriOpt);
-        if (storeOpt      != null) storeImpl       = storeOpt;
+        if (storeOpt      != null) storeImpl      = storeOpt;
         if (marshallerOpt != null) marshallerImpl  = marshallerOpt;
         if (agentOpt      != null) agentName       = agentOpt;
+        if (storeUriOpt != null) {
+            String base = storeUriOpt.endsWith("/") ? storeUriOpt : storeUriOpt + "/";
+            configUri = parseUri(base + "companion-config.json");
+            stateUri  = parseUri(base + "companion-state.json");
+        }
     }
 
     // ── Resolution helpers ─────────────────────────────────────────────────────
 
     MarshallerProvider resolveMarshaller() {
-        if (service.marshallerProviders().isEmpty()) {
-            out.error("No MarshallerProvider implementation found on classpath.");
-            return null;
-        }
         if (marshallerImpl == null) {
-            if (service.marshallerProviders().size() > 1) {
-                String names = service.marshallerProviders().stream()
-                    .map(MarshallerProvider::name).collect(Collectors.joining(", "));
-                out.error("Multiple MarshallerProvider implementations available: " + names
-                    + "\n  Specify one with --marshaller <name>");
-                return null;
-            }
-            return service.marshallerProviders().get(0);
+            out.error("Missing required option: '--marshaller'");
+            return null;
         }
         MarshallerProvider found = service.marshallerProviders().stream()
             .filter(m -> m.name().equals(marshallerImpl)).findFirst().orElse(null);
@@ -121,19 +103,9 @@ public class CompanionCLI implements Runnable {
     }
 
     StoreProvider resolveStoreProvider() {
-        if (service.storeProviders().isEmpty()) {
-            out.error("No StoreProvider implementation found on classpath.");
-            return null;
-        }
         if (storeImpl == null) {
-            if (service.storeProviders().size() > 1) {
-                String names = service.storeProviders().stream()
-                    .map(StoreProvider::name).collect(Collectors.joining(", "));
-                out.error("Multiple StoreProvider implementations available: " + names
-                    + "\n  Specify one with --store <name>");
-                return null;
-            }
-            return service.storeProviders().get(0);
+            out.error("Missing required option: '--store'");
+            return null;
         }
         StoreProvider found = service.storeProviders().stream()
             .filter(p -> p.name().equals(storeImpl)).findFirst().orElse(null);
@@ -145,6 +117,10 @@ public class CompanionCLI implements Runnable {
     }
 
     public ConfigStore loadConfig() {
+        if (configUri == null) {
+            out.error("Missing required argument: <uri>");
+            return null;
+        }
         MarshallerProvider mp = resolveMarshaller();
         StoreProvider      sp = resolveStoreProvider();
         if (mp == null || sp == null) return null;
@@ -160,6 +136,10 @@ public class CompanionCLI implements Runnable {
     }
 
     public StateStore loadState() {
+        if (stateUri == null) {
+            out.error("Missing required argument: <uri>");
+            return null;
+        }
         MarshallerProvider mp = resolveMarshaller();
         StoreProvider      sp = resolveStoreProvider();
         if (mp == null || sp == null) return null;
@@ -212,12 +192,7 @@ public class CompanionCLI implements Runnable {
     public static void main(String[] args) throws Exception {
         Terminal terminal = TerminalBuilder.builder().system(true).build();
         CompanionCLI cli = new CompanionCLI(AgentInvokerService.load(), terminal);
-        CommandLine cmd = buildCommandLine(cli);
-        if (args.length == 0) {
-            new InteractiveCLI(cli, cmd).run();
-        } else {
-            System.exit(cmd.execute(args));
-        }
+        System.exit(buildCommandLine(cli).execute(args));
     }
 
     static CommandLine buildCommandLine(CompanionCLI cli) {
