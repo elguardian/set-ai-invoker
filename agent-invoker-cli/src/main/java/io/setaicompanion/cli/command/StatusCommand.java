@@ -1,18 +1,22 @@
 package io.setaicompanion.cli.command;
 
-public class StatusCommand implements Command {
+import io.setaicompanion.cli.CompanionCLI;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.ParentCommand;
+
+@Command(name = "status", description = "Show current session configuration")
+public class StatusCommand implements Runnable {
+
+    @ParentCommand CompanionCLI root;
 
     @Override
-    public String name() { return "status"; }
-
-    @Override
-    public void execute(String[] parts, CommandContext ctx) {
-        ctx.out.header("Current session");
-        ctx.terminal.writer().println("  Config URI    : " + ctx.configUri);
-        ctx.terminal.writer().println("  State URI     : " + ctx.stateUri);
-        ctx.terminal.writer().println("  Store         : " + (ctx.storeImpl      != null ? ctx.storeImpl      : "(auto)"));
-        ctx.terminal.writer().println("  Marshaller    : " + (ctx.marshallerImpl != null ? ctx.marshallerImpl : "(auto)"));
-        ctx.terminal.writer().println("  Agent         : " + ctx.agentName);
-        ctx.terminal.flush();
+    public void run() {
+        root.out.header("Current session");
+        root.terminal.writer().println("  Config URI    : " + root.configUri);
+        root.terminal.writer().println("  State URI     : " + root.stateUri);
+        root.terminal.writer().println("  Store         : " + (root.storeImpl      != null ? root.storeImpl      : "(auto)"));
+        root.terminal.writer().println("  Marshaller    : " + (root.marshallerImpl != null ? root.marshallerImpl : "(auto)"));
+        root.terminal.writer().println("  Agent         : " + root.agentName);
+        root.terminal.flush();
     }
 }

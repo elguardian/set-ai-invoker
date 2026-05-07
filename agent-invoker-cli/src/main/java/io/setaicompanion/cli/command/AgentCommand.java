@@ -1,17 +1,19 @@
 package io.setaicompanion.cli.command;
 
-public class AgentCommand implements Command {
+import io.setaicompanion.cli.CompanionCLI;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.ParentCommand;
+
+@Command(name = "agent", description = "Set the agent to use")
+public class AgentCommand implements Runnable {
+
+    @ParentCommand CompanionCLI root;
+    @Parameters(index = "0", description = "Agent name (e.g. claude, ibm-bob)") String name;
 
     @Override
-    public String name() { return "agent"; }
-
-    @Override
-    public void execute(String[] parts, CommandContext ctx) {
-        if (parts.length < 2) {
-            ctx.out.warn("Usage: agent <claude|ibm-bob>");
-            return;
-        }
-        ctx.agentName = parts[1];
-        ctx.out.info("Agent set to: " + ctx.agentName);
+    public void run() {
+        root.agentName = name;
+        root.out.info("Agent set to: " + name);
     }
 }

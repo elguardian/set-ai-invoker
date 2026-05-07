@@ -1,51 +1,75 @@
 package io.setaicompanion.cli.command;
 
+import io.setaicompanion.cli.CompanionCLI;
 import io.setaicompanion.store.StateStore;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.ParentCommand;
+import picocli.CommandLine.Spec;
 
-public class StateCommand implements Command {
+@Command(
+    name = "state",
+    subcommands = {StateCommand.Show.class, StateCommand.Reset.class, StateCommand.SetCheckpoint.class},
+    description = "Manage checkpoint state"
+)
+public class StateCommand implements Runnable {
+
+    @ParentCommand CompanionCLI root;
+    @Spec CommandSpec spec;
 
     @Override
-    public String name() { return "state"; }
+    public void run() { spec.commandLine().usage(root.out.writer()); }
 
-    @Override
-    public void execute(String[] parts, CommandContext ctx) {
-        if (parts.length < 2) {
-            ctx.out.warn("Usage: state show|reset|set-checkpoint ...");
-            return;
+    @Command(name = "show", description = "Print all checkpoints")
+    static class Show implements Runnable {
+        @ParentCommand StateCommand parent;
+
+        @Override
+        public void run() {
+            StateStore state = parent.root.loadState();
+            if (state == null) return;
+            parent.root.out.printState(parent.root.stateUri, state.allEntries());
         }
-        StateStore st;
-        try {
-            st = ctx.loadState();
-        } catch (Exception e) {
-            return;
+    }
+
+    @Command(name = "reset", description = "Clear checkpoints (all, or for a specific source)")
+    static class Reset implements Runnable {
+        @ParentCommand StateCommand parent;
+        @Parameters(index = "0", arity = "0..1", description = "Event type") String type;
+        @Parameters(index = "1", arity = "0..1", description = "Source URL")  String url;
+
+        @Override
+        public void run() {
+            CompanionCLI root = parent.root;
+            StateStore state = root.loadState();
+            if (state == null) return;
+            if (type != null && url != null) {
+                state.resetCheckpoint(type, url);
+                root.out.info("Checkpoint cleared for: " + type + " " + url);
+            } else {
+                state.resetAll();
+                root.out.info("All checkpoints cleared.");
+            }
+            root.saveState(state);
         }
-        if (st == null) return;
+    }
 
-        switch (parts[1]) {
-            case "show" -> ctx.out.printState(ctx.stateUri, st.allEntries());
+    @Command(name = "set-checkpoint", description = "Force-set a checkpoint value")
+    static class SetCheckpoint implements Runnable {
+        @ParentCommand StateCommand parent;
+        @Parameters(index = "0", description = "Event type")       String type;
+        @Parameters(index = "1", description = "Source URL")        String url;
+        @Parameters(index = "2", description = "Checkpoint value") String value;
 
-            case "reset" -> {
-                if (parts.length >= 4) {
-                    st.resetCheckpoint(parts[2], parts[3]);
-                    ctx.out.info("Checkpoint cleared for: " + parts[2] + " " + parts[3]);
-                } else {
-                    st.resetAll();
-                    ctx.out.info("All checkpoints cleared.");
-                }
-                ctx.saveState(st);
-            }
-
-            case "set-checkpoint" -> {
-                if (parts.length < 5) {
-                    ctx.out.warn("Usage: state set-checkpoint <type> <url> <value>");
-                    return;
-                }
-                st.setCheckpoint(parts[2], parts[3], parts[4]);
-                ctx.saveState(st);
-                ctx.out.info("Checkpoint set for " + parts[2] + " " + parts[3]);
-            }
-
-            default -> ctx.out.warn("Unknown state sub-command: " + parts[1]);
+        @Override
+        public void run() {
+            CompanionCLI root = parent.root;
+            StateStore state = root.loadState();
+            if (state == null) return;
+            state.setCheckpoint(type, url, value);
+            root.saveState(state);
+            root.out.info("Checkpoint set for " + type + " " + url);
         }
     }
 }

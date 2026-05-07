@@ -1,83 +1,53 @@
 package io.setaicompanion.cli.runner;
 
-import io.setaicompanion.AgentInvokerService;
-import io.setaicompanion.cli.CLIParser;
-import io.setaicompanion.cli.TerminalOutput;
-import io.setaicompanion.cli.command.Command;
-import io.setaicompanion.cli.command.CommandContext;
+import io.setaicompanion.cli.CompanionCLI;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.ParsedLine;
 import org.jline.reader.UserInterruptException;
-import org.jline.reader.impl.DefaultParser;
-import org.jline.reader.impl.completer.StringsCompleter;
-import org.jline.terminal.Terminal;
+import picocli.CommandLine;
+import picocli.shell.jline3.PicocliJLineCompleter;
 
-import java.util.Map;
+import java.nio.file.Path;
 
-public class InteractiveCLI implements RunnerCLI {
+public class InteractiveCLI {
 
-    private final AgentInvokerService  service;
-    private final Map<String, Command> commands;
+    private final CompanionCLI cli;
+    private final CommandLine  commandLine;
 
-    public InteractiveCLI(AgentInvokerService service, Map<String, Command> commands) {
-        this.service  = service;
-        this.commands = commands;
+    public InteractiveCLI(CompanionCLI cli, CommandLine commandLine) {
+        this.cli         = cli;
+        this.commandLine = commandLine;
     }
 
-    @Override
-    public void run(Terminal terminal) {
-        TerminalOutput out = new TerminalOutput(terminal);
-        out.header("Set AI Companion — interactive mode");
-        out.info("Type 'help' for commands, 'collect' to run, 'exit' to quit.");
-
+    public void run() {
         LineReader reader = LineReaderBuilder.builder()
-            .terminal(terminal)
-            .parser(new DefaultParser())
-            .completer(new StringsCompleter(
-                "config", "config show", "config add", "config set", "config remove", "config filter",
-                "state", "state show", "state reset", "state set-checkpoint",
-                "collect", "agent", "marshaller", "store", "status", "help", "exit", "quit"))
-            .variable(LineReader.HISTORY_FILE, System.getProperty("user.home") + "/.companion_history")
+            .terminal(cli.terminal)
+            .completer(new PicocliJLineCompleter(commandLine.getCommandSpec()))
+            .variable(LineReader.HISTORY_FILE,
+                Path.of(System.getProperty("user.home"), ".companion_history").toString())
             .build();
 
-        CommandContext ctx = new CommandContext(
-            service, out, terminal,
-            CLIParser.parseUri(env("CONFIG_URI", "./companion-config.json")),
-            CLIParser.parseUri(env("STATE_URI",  "./companion-state.json")),
-            env("STORE_IMPL",  null),
-            env("MARSHALLER",  null),
-            env("AGENT",       "claude"));
+        cli.out.header("Set AI Companion — interactive mode");
+        cli.out.info("Type 'help' for commands, 'collect' to run, 'exit' to quit.");
 
         while (true) {
-            String line;
             try {
-                line = reader.readLine("invoker> ").trim();
-            } catch (UserInterruptException | EndOfFileException e) {
+                String line = reader.readLine("invoker> ").trim();
+                if (line.isEmpty()) continue;
+                String first = line.split("\\s+", 2)[0];
+                if ("exit".equals(first) || "quit".equals(first)) break;
+                ParsedLine pl = reader.getParser().parse(line, 0);
+                String[] args = pl.words().toArray(new String[0]);
+                commandLine.execute(args);
+            } catch (UserInterruptException e) {
+                continue;
+            } catch (EndOfFileException e) {
                 break;
-            }
-            if (line.isEmpty()) continue;
-
-            String[] parts = line.split("\\s+");
-
-            if (parts[0].equals("exit") || parts[0].equals("quit")) {
-                out.info("Goodbye!");
-                return;
-            }
-
-            Command cmd = commands.get(parts[0]);
-            if (cmd != null) {
-                cmd.execute(parts, ctx);
-            } else {
-                out.warn("Unknown command: " + parts[0] + ". Type 'help'.");
             }
         }
 
-        out.info("Goodbye!");
-    }
-
-    private static String env(String name, String defaultValue) {
-        String v = System.getenv(name);
-        return v != null && !v.isBlank() ? v : defaultValue;
+        cli.out.info("Goodbye!");
     }
 }

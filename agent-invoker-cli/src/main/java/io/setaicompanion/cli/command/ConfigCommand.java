@@ -1,134 +1,148 @@
 package io.setaicompanion.cli.command;
 
+import io.setaicompanion.cli.CompanionCLI;
 import io.setaicompanion.collector.EventCollector;
 import io.setaicompanion.collector.FilterParser;
 import io.setaicompanion.collector.Filters;
-import io.setaicompanion.store.ConfigStore;
 import io.setaicompanion.model.EventSourceConfig;
+import io.setaicompanion.store.ConfigStore;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.ParentCommand;
+import picocli.CommandLine.Spec;
 
 import java.util.List;
 
-public class ConfigCommand implements Command {
+@Command(
+    name = "config",
+    subcommands = {
+        ConfigCommand.Show.class,
+        ConfigCommand.Add.class,
+        ConfigCommand.Set.class,
+        ConfigCommand.Remove.class,
+        ConfigCommand.Filter.class
+    },
+    description = "Manage event source configuration"
+)
+public class ConfigCommand implements Runnable {
+
+    @ParentCommand CompanionCLI root;
+    @Spec CommandSpec spec;
 
     @Override
-    public String name() { return "config"; }
+    public void run() { spec.commandLine().usage(root.out.writer()); }
 
-    @Override
-    public void execute(String[] parts, CommandContext ctx) {
-        if (parts.length < 2) {
-            ctx.out.warn("Usage: config show|add|set|remove|filter ...");
-            return;
-        }
-        ConfigStore cfg;
-        try {
-            cfg = ctx.loadConfig();
-        } catch (Exception e) {
-            return;
-        }
-        if (cfg == null) return;
+    @Command(name = "show", description = "Print all configured sources")
+    static class Show implements Runnable {
+        @ParentCommand ConfigCommand parent;
 
-        switch (parts[1]) {
-            case "show"   -> ctx.out.printConfig(ctx.configUri, cfg.entries());
-            case "add"    -> add(parts, cfg, ctx);
-            case "set"    -> set(parts, cfg, ctx);
-            case "remove" -> remove(parts, cfg, ctx);
-            case "filter" -> {
-                if (parts.length < 4) {
-                    ctx.out.warn("Usage: config filter <type> <url> [filter-tokens...]");
-                    ctx.collectors.forEach(c -> ctx.out.info("[" + c.getType() + "] " + c.filterHelp()));
-                    return;
-                }
-                applyFilter(parts[2], parts[3], List.of(parts).subList(4, parts.length), cfg, ctx);
+        @Override
+        public void run() {
+            ConfigStore cfg = parent.root.loadConfig();
+            if (cfg == null) return;
+            parent.root.out.printConfig(parent.root.configUri, cfg.entries());
+        }
+    }
+
+    @Command(name = "add", description = "Add an event source")
+    static class Add implements Runnable {
+        @ParentCommand ConfigCommand parent;
+        @Option(names = {"-t", "--type"}, required = true, description = "Event type") String type;
+        @Option(names = {"-u", "--url"},  required = true, description = "Source URL")  String url;
+        @Option(names = "--user",                          description = "Username")     String user;
+        @Option(names = {"--token", "--api-token"},        description = "API token")   String token;
+        @Option(names = "--password",                      description = "Password")    String password;
+
+        @Override
+        public void run() {
+            CompanionCLI root = parent.root;
+            ConfigStore cfg = root.loadConfig();
+            if (cfg == null) return;
+            cfg.add(new EventSourceConfig(type, url, user, token, password, Filters.empty()));
+            root.saveConfig(cfg);
+            root.out.info("Added: " + type + " " + url);
+        }
+    }
+
+    @Command(name = "set", description = "Update fields of an existing source")
+    static class Set implements Runnable {
+        @ParentCommand ConfigCommand parent;
+        @Parameters(index = "0", description = "Event type") String type;
+        @Parameters(index = "1", description = "Source URL")  String url;
+        @Option(names = "--user",                   description = "Username")  String user;
+        @Option(names = {"--token", "--api-token"}, description = "API token") String token;
+        @Option(names = "--password",               description = "Password")  String password;
+        @Option(names = "--url",                    description = "New URL")   String newUrl;
+
+        @Override
+        public void run() {
+            CompanionCLI root = parent.root;
+            ConfigStore cfg = root.loadConfig();
+            if (cfg == null) return;
+            EventSourceConfig existing = cfg.find(type, url).orElse(null);
+            if (existing == null) { root.out.warn("Not found: " + type + " " + url); return; }
+            String u  = user     != null ? user     : existing.eventUser();
+            String t  = token    != null ? token    : existing.eventApiToken();
+            String p  = password != null ? password : existing.eventPassword();
+            String nu = newUrl   != null ? newUrl   : existing.eventUrl();
+            cfg.set(type, url, new EventSourceConfig(type, nu, u, t, p, existing.eventFilter()));
+            root.saveConfig(cfg);
+            root.out.info("Updated: " + type + " " + url);
+        }
+    }
+
+    @Command(name = "remove", description = "Remove an event source")
+    static class Remove implements Runnable {
+        @ParentCommand ConfigCommand parent;
+        @Parameters(index = "0", description = "Event type") String type;
+        @Parameters(index = "1", description = "Source URL")  String url;
+
+        @Override
+        public void run() {
+            CompanionCLI root = parent.root;
+            ConfigStore cfg = root.loadConfig();
+            if (cfg == null) return;
+            if (!cfg.remove(type, url)) {
+                root.out.warn("Not found: " + type + " " + url);
+                return;
             }
-            default -> ctx.out.warn("Unknown config sub-command: " + parts[1]);
+            root.saveConfig(cfg);
+            root.out.info("Removed: " + type + " " + url);
         }
     }
 
-    private void add(String[] parts, ConfigStore cfg, CommandContext ctx) {
-        String type = null, url = null, user = null, token = null, password = null;
-        for (int j = 2; j < parts.length; j++) {
-            String tok = parts[j];
-            if      (tok.startsWith("type="))      type     = tok.substring(5);
-            else if (tok.startsWith("url="))       url      = tok.substring(4);
-            else if (tok.startsWith("user="))      user     = tok.substring(5);
-            else if (tok.startsWith("token="))     token    = tok.substring(6);
-            else if (tok.startsWith("api-token=")) token    = tok.substring(10);
-            else if (tok.startsWith("password="))  password = tok.substring(9);
-            else ctx.out.warn("Unknown field: " + tok);
-        }
-        if (type == null || url == null) {
-            ctx.out.warn("Usage: config add type=<type> url=<url> [user=<u>] [token=<t>] ...");
-            return;
-        }
-        cfg.add(new EventSourceConfig(type, url, user, token, password, Filters.empty()));
-        ctx.saveConfig(cfg);
-        ctx.out.info("Added: " + type + " " + url);
-    }
+    @Command(name = "filter", description = "Set collector-specific filter for a source")
+    static class Filter implements Runnable {
+        @ParentCommand ConfigCommand parent;
+        @Parameters(index = "0", description = "Event type") String type;
+        @Parameters(index = "1", description = "Source URL")  String url;
+        @Parameters(index = "2..*", arity = "0..*", description = "Filter tokens (e.g. project=PROJ)")
+        List<String> tokens = List.of();
 
-    private void set(String[] parts, ConfigStore cfg, CommandContext ctx) {
-        if (parts.length < 4) {
-            ctx.out.warn("Usage: config set <type> <url> [field=value ...]");
-            return;
+        @Override
+        public void run() {
+            CompanionCLI root = parent.root;
+            EventCollector collector = root.findCollector(type);
+            if (collector == null) return;
+            if (tokens.isEmpty()) {
+                root.out.info("Filter help for '" + type + "': " + collector.filterHelp());
+                return;
+            }
+            ConfigStore cfg = root.loadConfig();
+            if (cfg == null) return;
+            Filters filters = FilterParser.parse(collector.getFilterKeysSupported(), tokens);
+            EventSourceConfig existing = cfg.find(type, url).orElse(null);
+            if (existing == null) {
+                root.out.warn("No config entry for " + type + " " + url + ". Add it first.");
+                return;
+            }
+            cfg.set(type, url, new EventSourceConfig(
+                existing.eventType(), existing.eventUrl(), existing.eventUser(),
+                existing.eventApiToken(), existing.eventPassword(), filters));
+            root.saveConfig(cfg);
+            root.out.info("Filter updated for " + type + " " + url + ": " + filters);
         }
-        String sType = parts[2], sUrl = parts[3];
-        EventSourceConfig existing = cfg.find(sType, sUrl).orElse(null);
-        if (existing == null) { ctx.out.warn("Not found: " + sType + " " + sUrl); return; }
-        String user = existing.eventUser(), token = existing.eventApiToken(),
-               password = existing.eventPassword();
-        for (int j = 4; j < parts.length; j++) {
-            String tok = parts[j];
-            if      (tok.startsWith("user="))      user     = tok.substring(5);
-            else if (tok.startsWith("token="))     token    = tok.substring(6);
-            else if (tok.startsWith("api-token=")) token    = tok.substring(10);
-            else if (tok.startsWith("password="))  password = tok.substring(9);
-            else if (tok.startsWith("url="))       sUrl     = tok.substring(4);
-            else ctx.out.warn("Unknown field: " + tok);
-        }
-        cfg.set(sType, parts[3],
-            new EventSourceConfig(sType, sUrl, user, token, password, existing.eventFilter()));
-        ctx.saveConfig(cfg);
-        ctx.out.info("Updated: " + sType + " " + parts[3]);
-    }
-
-    private void remove(String[] parts, ConfigStore cfg, CommandContext ctx) {
-        if (parts.length < 4) {
-            ctx.out.warn("Usage: config remove <type> <url>");
-            return;
-        }
-        if (!cfg.remove(parts[2], parts[3])) {
-            ctx.out.warn("Not found: " + parts[2] + " " + parts[3]);
-            return;
-        }
-        ctx.saveConfig(cfg);
-        ctx.out.info("Removed: " + parts[2] + " " + parts[3]);
-    }
-
-    /**
-     * Applies a collector-specific filter to a config entry.
-     * Returns {@code true} on success (or when printing filter help), {@code false} on error.
-     */
-    public static boolean applyFilter(String type, String url, List<String> tokens,
-                                      ConfigStore cfg, CommandContext ctx) {
-        EventCollector collector = ctx.findCollector(type);
-        if (collector == null) return false;
-
-        if (tokens.isEmpty()) {
-            ctx.out.info("Filter help for '" + type + "': " + collector.filterHelp());
-            return true;
-        }
-
-        Filters filters = FilterParser.parse(collector.getFilterKeysSupported(), tokens);
-        EventSourceConfig existing = cfg.find(type, url).orElse(null);
-        if (existing == null) {
-            ctx.out.warn("No config entry for " + type + " " + url
-                + ". Add it first with --config-add or 'config add'.");
-            return false;
-        }
-        cfg.set(type, url, new EventSourceConfig(
-            existing.eventType(), existing.eventUrl(), existing.eventUser(),
-            existing.eventApiToken(), existing.eventPassword(), filters));
-        ctx.saveConfig(cfg);
-        ctx.out.info("Filter updated for " + type + " " + url + ": " + filters);
-        return true;
     }
 }

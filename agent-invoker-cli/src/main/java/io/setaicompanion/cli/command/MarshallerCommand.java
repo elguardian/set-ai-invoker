@@ -1,20 +1,19 @@
 package io.setaicompanion.cli.command;
 
-import io.setaicompanion.marshaller.MarshallerProvider;
+import io.setaicompanion.cli.CompanionCLI;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.ParentCommand;
 
-public class MarshallerCommand implements Command {
+@Command(name = "marshaller", description = "Set the marshaller implementation")
+public class MarshallerCommand implements Runnable {
+
+    @ParentCommand CompanionCLI root;
+    @Parameters(index = "0", description = "Marshaller name") String name;
 
     @Override
-    public String name() { return "marshaller"; }
-
-    @Override
-    public void execute(String[] parts, CommandContext ctx) {
-        if (parts.length < 2) {
-            ctx.out.warn("Usage: marshaller <name>   (available: "
-                + ctx.marshallerProviders.stream().map(MarshallerProvider::name).toList() + ")");
-            return;
-        }
-        ctx.marshallerImpl = parts[1];
-        ctx.out.info("Marshaller set to: " + parts[1]);
+    public void run() {
+        root.marshallerImpl = name;
+        root.out.info("Marshaller set to: " + name);
     }
 }
