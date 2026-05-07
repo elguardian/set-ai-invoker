@@ -6,7 +6,6 @@ import io.setaicompanion.cli.Log;
 import io.setaicompanion.collector.CollectorConfig;
 import io.setaicompanion.collector.EventCollector;
 import io.setaicompanion.collector.EventsCollected;
-import io.setaicompanion.collector.Filters;
 import io.setaicompanion.store.ConfigStore;
 import io.setaicompanion.model.ApplicationEvent;
 import io.setaicompanion.model.EventSourceConfig;
@@ -42,9 +41,12 @@ public class CollectCommand implements Command {
             if (parts.length >= 5 && parts[3].equals("checkpoint")) {
                 overrideCheckpoint = parts[4];
             }
-            EventSourceConfig src = cfg.find(cType, cUrl)
-                .orElse(new EventSourceConfig(cType, cUrl, null,
-                    env("API_TOKEN", ""), null, Filters.empty()));
+            EventSourceConfig src = cfg.find(cType, cUrl).orElse(null);
+            if (src == null) {
+                ctx.out.warn("Not found in config: " + cType + " " + cUrl
+                    + ". Add it first with 'config add'.");
+                return;
+            }
             if (overrideCheckpoint != null) {
                 state.setCheckpoint(cType, cUrl, overrideCheckpoint);
             }
@@ -109,8 +111,4 @@ public class CollectCommand implements Command {
         }
     }
 
-    private static String env(String name, String defaultValue) {
-        String v = System.getenv(name);
-        return v != null && !v.isBlank() ? v : defaultValue;
-    }
 }

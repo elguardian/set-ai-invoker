@@ -104,9 +104,12 @@ public class BatchCLI implements RunnerCLI {
         List<EventSourceConfig> sources;
         if (options.collectType() != null) {
             EventSourceConfig src = config.find(options.collectType(), options.collectUrl())
-                .orElse(new EventSourceConfig(
-                    options.collectType(), options.collectUrl(), null,
-                    env("API_TOKEN", ""), null, Filters.empty()));
+                .orElse(null);
+            if (src == null) {
+                out.warn("Not found in config: " + options.collectType() + " " + options.collectUrl()
+                    + ". Add it first with --config-add.");
+                return 1;
+            }
             sources = List.of(src);
             if (options.overrideCheckpoint() != null) {
                 state.setCheckpoint(options.collectType(), options.collectUrl(),
@@ -151,8 +154,4 @@ public class BatchCLI implements RunnerCLI {
         return 0;
     }
 
-    private static String env(String name, String defaultValue) {
-        String v = System.getenv(name);
-        return v != null && !v.isBlank() ? v : defaultValue;
-    }
 }
