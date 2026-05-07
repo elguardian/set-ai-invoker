@@ -9,7 +9,7 @@ import io.setaicompanion.cli.command.HelpCommand;
 import io.setaicompanion.cli.command.MarshallerCommand;
 import io.setaicompanion.cli.command.StateCommand;
 import io.setaicompanion.cli.command.StatusCommand;
-import io.setaicompanion.cli.command.StoreImplCommand;
+import io.setaicompanion.cli.command.StoreCommand;
 import io.setaicompanion.cli.runner.BatchCLI;
 import io.setaicompanion.cli.runner.InteractiveCLI;
 import io.setaicompanion.cli.runner.RunnerCLI;
@@ -34,7 +34,7 @@ public class CompanionCLI {
             new StatusCommand(),
             new AgentCommand(),
             new MarshallerCommand(),
-            new StoreImplCommand(),
+            new StoreCommand(),
             new ConfigCommand(),
             new StateCommand(),
             new CollectCommand()
