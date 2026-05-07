@@ -37,7 +37,7 @@ public class InteractiveCLI implements RunnerCLI {
             .completer(new StringsCompleter(
                 "config", "config show", "config add", "config set", "config remove", "config filter",
                 "state", "state show", "state reset", "state set-checkpoint",
-                "collect", "agent", "marshaller", "store-impl", "status", "help", "exit", "quit"))
+                "collect", "agent", "marshaller", "store", "status", "help", "exit", "quit"))
             .variable(LineReader.HISTORY_FILE, System.getProperty("user.home") + "/.companion_history")
             .build();
 
@@ -52,7 +52,7 @@ public class InteractiveCLI implements RunnerCLI {
         while (true) {
             String line;
             try {
-                line = reader.readLine("companion> ").trim();
+                line = reader.readLine("invoker> ").trim();
             } catch (UserInterruptException | EndOfFileException e) {
                 break;
             }
