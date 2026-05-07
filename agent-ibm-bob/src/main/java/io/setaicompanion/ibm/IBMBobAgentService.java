@@ -3,8 +3,6 @@ package io.setaicompanion.ibm;
 import io.setaicompanion.agent.AgentResponse;
 import io.setaicompanion.agent.AgentService;
 import io.setaicompanion.model.ApplicationEvent;
-import io.setaicompanion.model.JiraIssueEvent;
-import io.setaicompanion.model.PullRequestEvent;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -28,15 +26,14 @@ public class IBMBobAgentService implements AgentService {
 
     @Override
     public AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine) {
-        String effectivePrompt = prompt != null ? prompt : buildPrompt(event);
-        String analysis = invokeIBMCLI(effectivePrompt, outputLine);
+        String analysis = invokeIBMCLI(prompt != null ? prompt : "", outputLine);
         return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
     }
 
     private String invokeIBMCLI(String prompt, Consumer<String> outputLine) {
-        String command  = System.getenv().getOrDefault("IBM_BOB_COMMAND", "ibmcloud");
-        String argsEnv  = System.getenv().getOrDefault("IBM_BOB_ARGS", "ml,text-generation,--input");
-        boolean stdin   = "true".equalsIgnoreCase(System.getenv("IBM_BOB_STDIN"));
+        String command = System.getenv().getOrDefault("IBM_BOB_COMMAND", "ibmcloud");
+        String argsEnv = System.getenv().getOrDefault("IBM_BOB_ARGS", "ml,text-generation,--input");
+        boolean stdin  = "true".equalsIgnoreCase(System.getenv("IBM_BOB_STDIN"));
 
         List<String> cmd = new ArrayList<>();
         cmd.add(command);
@@ -91,33 +88,5 @@ public class IBMBobAgentService implements AgentService {
             Log.LOG.invocationError(e.getMessage());
             return "[ibm-bob] error: " + e.getMessage();
         }
-    }
-
-    private String buildPrompt(ApplicationEvent event) {
-        return switch (event) {
-            case PullRequestEvent pr -> """
-                You are an AI assistant monitoring GitHub pull requests. \
-                Analyse the following event and provide a concise summary with recommended actions.
-
-                Repository : %s/%s
-                PR #%d
-                Action     : %s
-                URL        : %s
-                """.formatted(pr.owner(), pr.repo(), pr.prNumber(), pr.action(), pr.url());
-
-            case JiraIssueEvent jira -> """
-                You are an AI assistant monitoring Jira issues. \
-                Analyse the following updated issue and provide a concise summary with recommended actions.
-
-                Issue    : %s
-                Summary  : %s
-                Status   : %s
-                Priority : %s
-                Assignee : %s
-                Reporter : %s
-                Updated  : %s
-                """.formatted(jira.issueKey(), jira.summary(), jira.status(),
-                    jira.priority(), jira.assignee(), jira.reporter(), jira.timestamp());
-        };
     }
 }
