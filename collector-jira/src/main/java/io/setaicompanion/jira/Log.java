@@ -16,23 +16,18 @@ interface Log extends BasicLogger {
     void apiError(int status, String url);
 
     @LogMessage(level = Logger.Level.DEBUG)
-    @Message(id = 2, value = "Jira: no new audit records since checkpoint")
-    void noNewRecords();
+    @Message(id = 2, value = "Jira: no updated issues since checkpoint")
+    void noNewIssues();
 
     @LogMessage(level = Logger.Level.INFO)
-    @Message(id = 3, value = "Jira event: %s - %s: %s -> %s (by %s)")
-    void fieldChangeDetected(String issueKey, String fieldName, String oldValue,
-                             String newValue, String changedBy);
-
-    @LogMessage(level = Logger.Level.WARN)
-    @Message(id = 4, value = "Unknown Jira filter token: %s")
-    void unknownFilterToken(String token);
+    @Message(id = 3, value = "Jira issue collected: %s — %s")
+    void issueCollected(String issueKey, String summary);
 
     @LogMessage(level = Logger.Level.WARN)
     @Message(id = 5, value = "Cannot parse Jira timestamp: %s")
     void timestampParseError(String value);
 
     @LogMessage(level = Logger.Level.INFO)
-    @Message(id = 6, value = "Jira: %d field-change event(s) from %s")
+    @Message(id = 6, value = "Jira: %d issue(s) collected from %s")
     void collectionComplete(int count, String url);
 }

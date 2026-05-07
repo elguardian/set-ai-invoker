@@ -5,13 +5,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AuditRecordsResponse {
+public class SearchResponse {
     private int total;
-    private List<AuditRecord> records;
+    private List<Issue> issues;
 
     public int getTotal() { return total; }
     public void setTotal(int total) { this.total = total; }
-
-    public List<AuditRecord> getRecords() { return records; }
-    public void setRecords(List<AuditRecord> records) { this.records = records; }
+    public List<Issue> getIssues() { return issues; }
+    public void setIssues(List<Issue> issues) { this.issues = issues; }
 }

@@ -3,7 +3,7 @@ package io.setaicompanion.ibm;
 import io.setaicompanion.agent.AgentResponse;
 import io.setaicompanion.agent.AgentService;
 import io.setaicompanion.model.ApplicationEvent;
-import io.setaicompanion.model.JiraEvent;
+import io.setaicompanion.model.JiraIssueEvent;
 import io.setaicompanion.model.PullRequestEvent;
 
 import java.io.BufferedReader;
@@ -105,19 +105,19 @@ public class IBMBobAgentService implements AgentService {
                 URL        : %s
                 """.formatted(pr.owner(), pr.repo(), pr.prNumber(), pr.action(), pr.url());
 
-            case JiraEvent jira -> """
-                You are an AI assistant monitoring Jira issue changes. \
-                Fields pm_ack, dev_ack, qe_ack track team acknowledgments. \
-                Analyse this change and suggest follow-up actions.
+            case JiraIssueEvent jira -> """
+                You are an AI assistant monitoring Jira issues. \
+                Analyse the following updated issue and provide a concise summary with recommended actions.
 
-                Issue : %s
-                Field : %s
-                From  : %s
-                To    : %s
-                By    : %s
-                When  : %s
-                """.formatted(jira.issueKey(), jira.fieldName(),
-                    jira.oldValue(), jira.newValue(), jira.changedBy(), jira.timestamp());
+                Issue    : %s
+                Summary  : %s
+                Status   : %s
+                Priority : %s
+                Assignee : %s
+                Reporter : %s
+                Updated  : %s
+                """.formatted(jira.issueKey(), jira.summary(), jira.status(),
+                    jira.priority(), jira.assignee(), jira.reporter(), jira.timestamp());
         };
     }
 }
