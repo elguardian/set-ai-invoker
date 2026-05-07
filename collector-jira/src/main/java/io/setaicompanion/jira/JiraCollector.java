@@ -112,7 +112,7 @@ public class JiraCollector implements EventCollector {
                 return "Basic " + java.util.Base64.getEncoder()
                     .encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
             }
-            return "Bearer " + config.apiToken();
+            return "Bearer " + java.util.Base64.getEncoder().encodeToString(config.apiToken().getBytes(StandardCharsets.UTF_8));
         }
         if (config.user() != null && config.password() != null) {
             String credentials = config.user() + ":" + config.password();
