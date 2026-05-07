@@ -100,13 +100,10 @@ public class IBMBobAgentService implements AgentService {
                 Analyse the following event and provide a concise summary with recommended actions.
 
                 Repository : %s/%s
-                PR #%d     : %s
-                Author     : %s
+                PR #%d
+                Action     : %s
                 URL        : %s
-                Description:
-                %s
-                """.formatted(pr.owner(), pr.repo(), pr.prNumber(), pr.title(),
-                    pr.author(), pr.url(), pr.description());
+                """.formatted(pr.owner(), pr.repo(), pr.prNumber(), pr.action(), pr.url());
 
             case JiraFieldChangeEvent jira -> """
                 You are an AI assistant monitoring Jira issue changes. \

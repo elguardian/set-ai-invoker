@@ -47,7 +47,7 @@ public class TerminalOutput {
     public void printEvent(int index, int total, ApplicationEvent event) {
         String label = switch (event) {
             case PullRequestEvent pr ->
-                "PR #" + pr.prNumber() + " [" + pr.owner() + "/" + pr.repo() + "] " + pr.title();
+                "PR #" + pr.prNumber() + " [" + pr.owner() + "/" + pr.repo() + "] " + pr.action();
             case JiraFieldChangeEvent jira ->
                 jira.issueKey() + " — " + jira.fieldName() + ": " + jira.oldValue() + " → " + jira.newValue();
         };

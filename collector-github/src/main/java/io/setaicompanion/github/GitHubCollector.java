@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.setaicompanion.collector.CollectorConfig;
 import io.setaicompanion.collector.EventCollector;
 import io.setaicompanion.collector.EventsCollected;
+import io.setaicompanion.collector.Filter;
+import io.setaicompanion.collector.FilterOperator;
 import io.setaicompanion.github.dto.GitHubEvent;
 import io.setaicompanion.github.dto.GitHubEventPayload;
 import io.setaicompanion.github.dto.GitHubPullRequest;
@@ -40,6 +42,11 @@ public class GitHubCollector implements EventCollector {
     }
 
     @Override
+    public List<String> getFilterKeysSupported() {
+        return List.of("eventType", "action");
+    }
+
+    @Override
     public EventsCollected collect(CollectorConfig config, String checkpoint) throws Exception {
         String repoApiUrl = config.url().replaceAll("/+$", "");
         RepoCoords coords  = parseRepoCoords(repoApiUrl);
@@ -49,7 +56,7 @@ public class GitHubCollector implements EventCollector {
 
         // ── First page — use ETag for 304 optimisation ────────────────────────
         HttpRequest.Builder firstReq = HttpRequest.newBuilder()
-            .uri(URI.create(repoApiUrl + "/events?per_page=100"))
+            .uri(URI.create(repoApiUrl + "?per_page=100"))
             .header("Authorization", basicAuth(config.apiToken()))
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
@@ -92,24 +99,25 @@ public class GitHubCollector implements EventCollector {
                 }
                 if (eventId > maxId) maxId = eventId;
 
-                if (!"PullRequestEvent".equals(ghEvent.getType())) continue;
-
                 GitHubEventPayload payload = ghEvent.getPayload();
                 if (payload == null || payload.getPullRequest() == null) continue;
 
-                GitHubPullRequest pr     = payload.getPullRequest();
-                String            author = ghEvent.getActor() != null
-                    ? ghEvent.getActor().getLogin() : "unknown";
-                Instant timestamp = ghEvent.getCreatedAt() != null
+                GitHubPullRequest pr        = payload.getPullRequest();
+                String            action    = payload.getAction();
+                Instant           timestamp = ghEvent.getCreatedAt() != null
                     ? Instant.parse(ghEvent.getCreatedAt()) : Instant.now();
 
-                Log.LOG.prDetected(pr.getNumber(), repoKey, payload.getAction(), author);
-                events.add(new PullRequestEvent(
+                PullRequestEvent prEvent = new PullRequestEvent(
                     ghEvent.getId(), timestamp,
+                    ghEvent.getType(),
                     coords.owner(), coords.repo(),
-                    pr.getNumber(), pr.getTitle(), author,
-                    pr.getUrl(), pr.getBody()
-                ));
+                    pr.getNumber(), pr.getUrl(), action);
+
+                if (!matchesFilters(prEvent, config.filter())) continue;
+
+                Log.LOG.prDetected(pr.getNumber(), repoKey, action,
+                    ghEvent.getActor() != null ? ghEvent.getActor().getLogin() : "unknown");
+                events.add(prEvent);
             }
 
             if (done) break;
@@ -135,6 +143,20 @@ public class GitHubCollector implements EventCollector {
 
         Log.LOG.collectionComplete(events.size(), repoKey);
         return new EventsCollected(new Checkpoint(nextEtag, maxId).serialize(), events);
+    }
+
+    private static boolean matchesFilters(PullRequestEvent event, io.setaicompanion.collector.Filters filters) {
+        for (Filter filter : filters.all()) {
+            String fieldValue = switch (filter.key()) {
+                case "eventType" -> event.eventType();
+                case "action"    -> event.action();
+                default          -> null;
+            };
+            if (fieldValue == null) continue;
+            boolean matches = filter.operator() == FilterOperator.EQ && fieldValue.equalsIgnoreCase(filter.value());
+            if (!matches) return false;
+        }
+        return true;
     }
 
     private static String basicAuth(String token) {

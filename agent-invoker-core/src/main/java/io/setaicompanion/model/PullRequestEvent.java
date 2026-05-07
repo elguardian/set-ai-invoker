@@ -3,13 +3,12 @@ package io.setaicompanion.model;
 import java.time.Instant;
 
 public record PullRequestEvent(
-    String eventId,
+    String  eventId,
     Instant timestamp,
-    String owner,
-    String repo,
-    int prNumber,
-    String title,
-    String author,
-    String url,
-    String description
+    String  eventType,
+    String  owner,
+    String  repo,
+    int     prNumber,
+    String  url,
+    String  action
 ) implements ApplicationEvent {}
