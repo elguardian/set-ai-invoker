@@ -69,7 +69,9 @@ public class JiraCollector implements EventCollector {
 
         String body = MAPPER.writeValueAsString(Map.of(
             "jql",        jql.toString(),
-            "fields",     List.of("summary", "status", "priority", "assignee", "reporter", "updated"),
+            "fields",     List.of("summary", "status", "priority", "assignee", "reporter", "updated",
+                                  "customfield_10884", "customfield_10887", "customfield_10883",
+                                  "customfield_10886", "versions"),
             "maxResults", 100
         ));
 
@@ -99,15 +101,23 @@ public class JiraCollector implements EventCollector {
         for (Issue issue : search.getIssues()) {
             Issue.Fields f = issue.getFields();
             Instant updatedAt = parseUpdated(f.getUpdated());
+            String affectedVersion = f.getVersions() == null ? null :
+                f.getVersions().stream().map(Issue.NamedObject::getName)
+                    .filter(n -> n != null).reduce((a, b) -> a + ", " + b).orElse(null);
             events.add(new JiraIssueEvent(
                 UUID.randomUUID().toString(),
                 updatedAt,
                 issue.getKey(),
                 f.getSummary(),
-                f.getStatus()   != null ? f.getStatus().getName()          : null,
-                f.getAssignee() != null ? f.getAssignee().getDisplayName() : null,
-                f.getPriority() != null ? f.getPriority().getName()        : null,
-                f.getReporter() != null ? f.getReporter().getDisplayName() : null
+                f.getStatus()        != null ? f.getStatus().getName()          : null,
+                f.getAssignee()      != null ? f.getAssignee().getDisplayName() : null,
+                f.getPriority()      != null ? f.getPriority().getName()        : null,
+                f.getReporter()      != null ? f.getReporter().getDisplayName() : null,
+                f.getPmAck()         != null ? f.getPmAck().getValue()          : null,
+                f.getDevAck()        != null ? f.getDevAck().getValue()         : null,
+                f.getQeAck()         != null ? f.getQeAck().getValue()          : null,
+                f.getTargetRelease() != null ? f.getTargetRelease().getName()   : null,
+                affectedVersion
             ));
             Log.LOG.issueCollected(issue.getKey(), f.getSummary());
         }

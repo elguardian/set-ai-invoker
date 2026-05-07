@@ -10,5 +10,10 @@ public record JiraIssueEvent(
     String  status,
     String  assignee,
     String  priority,
-    String  reporter
+    String  reporter,
+    String  pmAck,
+    String  devAck,
+    String  qeAck,
+    String  targetRelease,
+    String  affectedVersion
 ) implements ApplicationEvent {}
