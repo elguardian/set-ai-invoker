@@ -64,6 +64,7 @@ public class JiraCollector implements EventCollector {
         if (!projects.isEmpty()) {
             jql.append(" AND project in (").append(String.join(",", projects)).append(")");
         }
+        jql.append(" AND statusCategory != Done");
         jql.append(" ORDER BY updated ASC");
 
         String body = MAPPER.writeValueAsString(Map.of(
