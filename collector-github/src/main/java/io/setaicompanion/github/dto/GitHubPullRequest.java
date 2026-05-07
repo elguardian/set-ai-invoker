@@ -1,7 +1,6 @@
 package io.setaicompanion.github.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class GitHubPullRequest {
@@ -10,8 +9,7 @@ public class GitHubPullRequest {
     private String title;
     private String body;
 
-    @JsonProperty("html_url")
-    private String htmlUrl;
+    private String url;
 
     private GitHubUser user;
 
@@ -24,8 +22,8 @@ public class GitHubPullRequest {
     public String getBody() { return body; }
     public void setBody(String body) { this.body = body; }
 
-    public String getHtmlUrl() { return htmlUrl; }
-    public void setHtmlUrl(String htmlUrl) { this.htmlUrl = htmlUrl; }
+    public String getUrl() { return url; }
+    public void setUrl(String url) { this.url = url; }
 
     public GitHubUser getUser() { return user; }
     public void setUser(GitHubUser user) { this.user = user; }

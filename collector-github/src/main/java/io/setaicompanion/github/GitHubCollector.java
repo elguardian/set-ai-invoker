@@ -108,7 +108,7 @@ public class GitHubCollector implements EventCollector {
                     ghEvent.getId(), timestamp,
                     coords.owner(), coords.repo(),
                     pr.getNumber(), pr.getTitle(), author,
-                    pr.getHtmlUrl(), pr.getBody()
+                    pr.getUrl(), pr.getBody()
                 ));
             }
 

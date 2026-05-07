@@ -1,20 +1,23 @@
 package io.setaicompanion.claude;
 
-import io.setaicompanion.agent.AgentResponse;
-import io.setaicompanion.agent.AgentService;
-import io.setaicompanion.model.ApplicationEvent;
-import io.setaicompanion.model.JiraFieldChangeEvent;
-import io.setaicompanion.model.PullRequestEvent;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
+
+import io.setaicompanion.agent.AgentResponse;
+import io.setaicompanion.agent.AgentService;
+import io.setaicompanion.model.ApplicationEvent;
+
+import static java.util.stream.Collectors.toCollection;
 
 public class ClaudeAgentService implements AgentService {
 
@@ -25,20 +28,21 @@ public class ClaudeAgentService implements AgentService {
 
     @Override
     public AgentResponse process(ApplicationEvent event, Consumer<String> outputLine) {
-        String prompt = buildPrompt(event);
-        String analysis = invokeClaudeCLI(prompt, outputLine);
+        String analysis = invokeClaudeCLI(outputLine);
         return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
     }
 
-    private String invokeClaudeCLI(String prompt, Consumer<String> outputLine) {
+    private String invokeClaudeCLI(Consumer<String> outputLine) {
         String command = System.getenv().getOrDefault("CLAUDE_COMMAND", "claude");
         String model   = System.getenv("CLAUDE_MODEL");
-
+        String prompt = "Use [agent-name] to [task]";
         try {
-            ProcessBuilder pb = model != null
-                ? new ProcessBuilder(command, "--print", "--no-color", "-m", model)
-                : new ProcessBuilder(command, "--print", "--no-color");
-
+            List<String> args = Stream.of(command, "--verbose", "--print", "--output-format", "stream-json").collect(toCollection(ArrayList::new));
+            if(model != null) {
+                args.add("-m");
+                args.add(model);
+            }
+            ProcessBuilder pb = new ProcessBuilder(args);
             pb.redirectErrorStream(true);
             Process process = pb.start();
 
@@ -83,35 +87,4 @@ public class ClaudeAgentService implements AgentService {
         }
     }
 
-    private String buildPrompt(ApplicationEvent event) {
-        return switch (event) {
-            case PullRequestEvent pr -> """
-                You are an AI assistant monitoring GitHub pull requests. \
-                Analyse the following event and provide a concise summary with any recommended actions.
-
-                Repository : %s/%s
-                PR #%d     : %s
-                Author     : %s
-                URL        : %s
-                Description:
-                %s
-                """.formatted(pr.owner(), pr.repo(), pr.prNumber(), pr.title(),
-                    pr.author(), pr.url(), pr.description());
-
-            case JiraFieldChangeEvent jira -> """
-                You are an AI assistant monitoring Jira issue changes. \
-                The fields pm_ack, dev_ack, and qe_ack track acknowledgments \
-                from Product Management, Development, and QE teams respectively. \
-                Analyse the following change and suggest follow-up actions.
-
-                Issue   : %s
-                Field   : %s
-                From    : %s
-                To      : %s
-                By      : %s
-                When    : %s
-                """.formatted(jira.issueKey(), jira.fieldName(),
-                    jira.oldValue(), jira.newValue(), jira.changedBy(), jira.timestamp());
-        };
-    }
 }
