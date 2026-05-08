@@ -5,45 +5,45 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.setaicompanion</groupId>
-        <artifactId>set-ai-companion</artifactId>
+        <groupId>org.jboss.set</groupId>
+        <artifactId>set-agent-invoker</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>agent-invoker-cli</artifactId>
-    <name>Set AI Companion :: Agent Invoker CLI</name>
+    <name>Set Agent Invoker :: Agent Invoker CLI</name>
 
     <dependencies>
         <dependency>
-            <groupId>io.setaicompanion</groupId>
+            <groupId>org.jboss.set</groupId>
             <artifactId>agent-invoker-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.setaicompanion</groupId>
+            <groupId>org.jboss.set</groupId>
             <artifactId>state-filesystem</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.setaicompanion</groupId>
+            <groupId>org.jboss.set</groupId>
             <artifactId>state-github</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.setaicompanion</groupId>
+            <groupId>org.jboss.set</groupId>
             <artifactId>marshaller-json</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.setaicompanion</groupId>
+            <groupId>org.jboss.set</groupId>
             <artifactId>collector-github</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.setaicompanion</groupId>
+            <groupId>org.jboss.set</groupId>
             <artifactId>collector-jira</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.setaicompanion</groupId>
+            <groupId>org.jboss.set</groupId>
             <artifactId>agent-claude</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.setaicompanion</groupId>
+            <groupId>org.jboss.set</groupId>
             <artifactId>agent-ibm-bob</artifactId>
         </dependency>
         <dependency>
@@ -90,7 +90,7 @@
                             <transformers>
                                 <!-- sets Main-Class in MANIFEST.MF -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>io.setaicompanion.cli.CompanionCLI</mainClass>
+                                    <mainClass>org.jboss.set.agent.invoker.cli.CompanionCLI</mainClass>
                                 </transformer>
                                 <!--
                                     Merges META-INF/services/ files from all dependency jars so

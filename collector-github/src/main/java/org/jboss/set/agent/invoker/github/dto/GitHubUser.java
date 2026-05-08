@@ -1,0 +1,11 @@
+package org.jboss.set.agent.invoker.github.dto;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class GitHubUser {
+    private String login;
+
+    public String getLogin() { return login; }
+    public void setLogin(String login) { this.login = login; }
+}

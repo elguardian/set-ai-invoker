@@ -1,0 +1,107 @@
+package org.jboss.set.agent.invoker.fs;
+
+import org.jboss.set.agent.invoker.marshaller.StateMarshaller;
+import org.jboss.set.agent.invoker.model.StateEntry;
+import org.jboss.set.agent.invoker.store.StateStore;
+
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+public class JsonStateStore implements StateStore {
+
+    private final Map<String, String> checkpoints = new LinkedHashMap<>();
+    private URI uri;
+    private StateMarshaller marshaller;
+
+    @Override
+    public String name() {
+        return "filesystem";
+    }
+
+    @Override
+    public boolean supports(URI uri) {
+        String scheme = uri.getScheme();
+        return scheme == null || "file".equals(scheme);
+    }
+
+    @Override
+    public void init(StateMarshaller marshaller) {
+        this.marshaller = marshaller;
+    }
+
+    @Override
+    public void load(URI uri) throws Exception {
+        this.uri = uri;
+        checkpoints.clear();
+        Path file = toPath(uri);
+        if (Files.exists(file)) {
+            try {
+                List<StateEntry> entries = marshaller.unmarshalState(Files.readAllBytes(file));
+                for (StateEntry e : entries) {
+                    checkpoints.put(key(e.eventType(), e.eventUrl()), e.eventCheckpoint());
+                }
+            } catch (Exception e) {
+                Log.LOG.stateReadError(file.toString(), e.getMessage());
+            }
+        }
+    }
+
+    @Override
+    public Optional<String> getCheckpoint(String eventType, String eventUrl) {
+        return Optional.ofNullable(checkpoints.get(key(eventType, eventUrl)));
+    }
+
+    @Override
+    public void setCheckpoint(String eventType, String eventUrl, String checkpoint) {
+        checkpoints.put(key(eventType, eventUrl), checkpoint);
+    }
+
+    @Override
+    public void resetCheckpoint(String eventType, String eventUrl) {
+        checkpoints.remove(key(eventType, eventUrl));
+    }
+
+    @Override
+    public void resetAll() {
+        checkpoints.clear();
+    }
+
+    @Override
+    public List<StateEntry> allEntries() {
+        List<StateEntry> entries = new ArrayList<>();
+        for (Map.Entry<String, String> e : checkpoints.entrySet()) {
+            String[] parts = e.getKey().split("\0", 2);
+            entries.add(new StateEntry(parts[0], parts[1], e.getValue()));
+        }
+        return List.copyOf(entries);
+    }
+
+    @Override
+    public void save() throws Exception {
+        Path file = toPath(uri);
+        Path parent = file.getParent();
+        if (parent != null) Files.createDirectories(parent);
+        byte[] bytes = marshaller.marshalState(allEntries());
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        Files.write(tmp, bytes);
+        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+    }
+
+    private static Path toPath(URI uri) {
+        if (uri.getScheme() == null) {
+            return Path.of(uri.toString());
+        }
+        return Path.of(uri);
+    }
+
+    private static String key(String eventType, String eventUrl) {
+        return eventType + "\0" + eventUrl;
+    }
+}

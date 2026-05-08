@@ -5,17 +5,17 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.setaicompanion</groupId>
-        <artifactId>set-ai-companion</artifactId>
+        <groupId>org.jboss.set</groupId>
+        <artifactId>set-agent-invoker</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>agent-ibm-bob</artifactId>
-    <name>Set AI Companion :: Agent IBM Bob</name>
+    <name>Set Agent Invoker :: Agent IBM Bob</name>
 
     <dependencies>
         <dependency>
-            <groupId>io.setaicompanion</groupId>
+            <groupId>org.jboss.set</groupId>
             <artifactId>agent-invoker-core</artifactId>
         </dependency>
         <dependency>

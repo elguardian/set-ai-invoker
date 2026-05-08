@@ -1,4 +1,4 @@
-# Set AI Companion
+# Set Agent Invoker
 
 Event collection tool that monitors GitHub pull requests and Jira issues, then processes each event through a configurable AI agent (Claude, IBM BOB, or any CLI-based model).
 
