@@ -14,26 +14,29 @@
 
 package org.jboss.set.agent.invoker.agent;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.util.Optional;
 
 /**
- * Handles individual lines streamed from an agent process stdout.
+ * Handles individual events streamed from an agent process stdout.
  *
- * <p>Implementations inspect each raw line and optionally return a reply
+ * <p>Implementations inspect each parsed JSON event and optionally return a reply
  * to be written back to the process stdin, enabling inline command responses.
+ * Lines that are not valid JSON are not dispatched.
  */
 public interface AgentEventDispatch {
 
     /**
-     * Called for each line read from the process stdout.
+     * Called for each JSON event parsed from the process stdout.
      *
-     * @param rawLine the raw line as received from the process
+     * @param event the parsed JSON event
      * @return a non-empty Optional if a reply should be written to stdin
      */
-    Optional<String> dispatch(String rawLine);
+    Optional<String> dispatch(JsonNode event);
 
     /** No-op dispatch that never replies to stdin. */
     static AgentEventDispatch none() {
-        return rawLine -> Optional.empty();
+        return event -> Optional.empty();
     }
 }

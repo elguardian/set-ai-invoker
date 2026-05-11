@@ -55,7 +55,7 @@ public final class StdoutReader implements Callable<String> {
             String line;
             while (!Thread.currentThread().isInterrupted() && (line = reader.readLine()) != null) {
                 emit(line);
-                dispatch.dispatch(line).ifPresent(reply -> replies.offer(Optional.of(reply)));
+                tryDispatch(line);
                 if (!sb.isEmpty()) sb.append('\n');
                 sb.append(line);
             }
@@ -64,6 +64,16 @@ public final class StdoutReader implements Callable<String> {
         }
         String result = sb.toString().trim();
         return result.isBlank() ? "[" + tag + "] no output" : result;
+    }
+
+    private void tryDispatch(String line) {
+        if (line == null || line.isBlank()) return;
+        char first = line.stripLeading().charAt(0);
+        if (first != '{' && first != '[') return;
+        try {
+            JsonNode event = ProcessRunner.PRETTY.readTree(line);
+            dispatch.dispatch(event).ifPresent(reply -> replies.offer(Optional.of(reply)));
+        } catch (Exception ignored) {}
     }
 
     private void emit(String line) {

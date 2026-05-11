@@ -59,29 +59,28 @@ public final class ProcessRunner {
             Future<Void>   stdinFuture  = executor.submit(new StdinWriter(process.getOutputStream(), prompt, pipeStdin, replies));
             Future<String> stdoutFuture = executor.submit(new StdoutReader(process.getInputStream(), tag, outputLine, dispatch, replies));
 
-            try {
-                executor.awaitTermination(120, TimeUnit.SECONDS);
-                String result = stdoutFuture.get();
-
-                boolean finished = process.waitFor(5, TimeUnit.SECONDS);
-                if (!finished) {
-                    process.destroyForcibly();
-                    String msg = "[" + tag + "] timed out after 120 s";
-                    outputLine.accept(msg);
-                    return msg;
-                }
-                if (process.exitValue() != 0) {
-                    onNonZeroExit.accept(process.exitValue());
-                }
-                return result;
-
-            } catch (TimeoutException e) {
+            if (!executor.awaitTermination(120, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
                 executor.shutdownNow();
                 String msg = "[" + tag + "] timed out after 120 s";
                 outputLine.accept(msg);
                 return msg;
             }
+
+            String result = stdoutFuture.get();
+
+            boolean finished = process.waitFor(5, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                String msg = "[" + tag + "] timed out after 120 s";
+                outputLine.accept(msg);
+                return msg;
+            }
+            if (process.exitValue() != 0) {
+                onNonZeroExit.accept(process.exitValue());
+            }
+            return result;
+
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
