@@ -32,7 +32,6 @@ import java.util.Base64;
  */
 final class GithubApi {
 
-    private static final String API_BASE = "https://api.github.com";
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final HttpClient http = HttpClient.newBuilder()
@@ -42,14 +41,20 @@ final class GithubApi {
     private final String token;
 
     GithubApi() {
-        this.token = System.getenv("GITHUB_TOKEN");
+        String v = System.getProperty("GITHUB_TOKEN");
+        this.token = v != null ? v : System.getenv("GITHUB_TOKEN");
     }
 
-    /** Parsed coordinates from a github.com URI. */
-    record Coords(String owner, String repo, String branch, String path) {
+    /** Parsed coordinates from a GitHub URI (github.com or GitHub Enterprise). */
+    record Coords(String apiBase, String owner, String repo, String branch, String path) {
         static Coords from(URI uri) {
-            // Accepts: https://github.com/owner/repo/blob/branch/path...
-            //      or: https://github.com/owner/repo/path...  (branch defaults to main)
+            // Accepts: https://<host>/owner/repo/blob/branch/path...
+            //      or: https://<host>/owner/repo/path...  (branch defaults to main)
+            String host = uri.getHost();
+            String apiBase = "github.com".equals(host)
+                ? uri.getScheme() + "://api.github.com"
+                : uri.getScheme() + "://" + host + "/api/v3";
+
             String[] parts = uri.getPath().replaceFirst("^/", "").split("/", -1);
             if (parts.length < 3) {
                 throw new IllegalArgumentException("Cannot parse GitHub URI: " + uri);
@@ -65,7 +70,7 @@ final class GithubApi {
                 branch   = "main";
                 filePath = String.join("/", Arrays.copyOfRange(parts, 2, parts.length));
             }
-            return new Coords(owner, repo, branch, filePath);
+            return new Coords(apiBase, owner, repo, branch, filePath);
         }
     }
 
@@ -76,7 +81,7 @@ final class GithubApi {
      * Downloads the file at {@code coords}. Returns {@code null} if the file does not yet exist.
      */
     FileContent get(Coords coords) throws Exception {
-        String url = API_BASE + "/repos/" + coords.owner() + "/" + coords.repo()
+        String url = coords.apiBase() + "/repos/" + coords.owner() + "/" + coords.repo()
             + "/contents/" + coords.path() + "?ref=" + coords.branch();
 
         HttpRequest req = HttpRequest.newBuilder()
@@ -107,7 +112,7 @@ final class GithubApi {
      * Pass {@code currentSha = null} to create a new file.
      */
     void put(Coords coords, byte[] content, String currentSha, String commitMessage) throws Exception {
-        String url = API_BASE + "/repos/" + coords.owner() + "/" + coords.repo()
+        String url = coords.apiBase() + "/repos/" + coords.owner() + "/" + coords.repo()
             + "/contents/" + coords.path();
 
         ObjectNode body = MAPPER.createObjectNode();
