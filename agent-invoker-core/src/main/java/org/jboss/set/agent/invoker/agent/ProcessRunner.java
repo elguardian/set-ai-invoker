@@ -14,100 +14,74 @@
 
 package org.jboss.set.agent.invoker.agent;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 /**
  * Shared process execution helper for CLI-based agent implementations.
  *
- * <p>Starts {@code command}, optionally pipes {@code prompt} to stdin, streams every
- * stdout line to {@code outputLine}, waits up to 120 s, and returns the full output.
- *
- * @param onNonZeroExit called with the exit code when the process exits non-zero
- * @param onError       called with the exception message on unexpected failure
+ * <p>Starts {@code command} and runs two concurrent tasks: {@link StdinWriter} pipes
+ * the prompt (and any inline replies from {@link AgentEventDispatch}) to stdin, while
+ * {@link StdoutReader} streams stdout lines through the dispatch and to the console.
  */
 public final class ProcessRunner {
 
-    private static final ObjectMapper PRETTY = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    static final ObjectMapper PRETTY = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+
+    /** Sentinel placed in the reply queue by {@link StdoutReader} to signal {@link StdinWriter} to close. */
+    static final Optional<String> DONE = Optional.empty();
 
     private ProcessRunner() {}
 
-    private static void emit(String line, String tag, Consumer<String> outputLine) {
-        if (line == null || line.isBlank()) {
-            outputLine.accept(line);
-            return;
-        }
-        char first = line.stripLeading().charAt(0);
-        if (first != '{' && first != '[') {
-            outputLine.accept(line);
-            return;
-        }
-        try {
-            JsonNode node = PRETTY.readTree(line);
-            outputLine.accept("[" + tag + "]");
-            for (String prettyLine : PRETTY.writeValueAsString(node).split("\n")) {
-                outputLine.accept(prettyLine);
-            }
-        } catch (Exception e) {
-            outputLine.accept(line);
-        }
-    }
-
     public static String run(List<String> command, String prompt, boolean pipeStdin,
-                             String tag, Consumer<String> outputLine,
+                             String tag, Consumer<String> outputLine, AgentEventDispatch dispatch,
                              IntConsumer onNonZeroExit, Consumer<String> onError) {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.redirectErrorStream(true);
             Process process = pb.start();
 
-            CompletableFuture<Void> stdinWriter = null;
-            if (pipeStdin) {
-                stdinWriter = CompletableFuture.runAsync(() -> {
-                    try (OutputStream os = process.getOutputStream()) {
-                        os.write(prompt.getBytes(StandardCharsets.UTF_8));
-                    } catch (IOException ignored) {}
-                });
-            }
+            BlockingQueue<Optional<String>> replies = new LinkedBlockingQueue<>();
 
-            StringBuilder sb = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    emit(line, tag, outputLine);
-                    if (!sb.isEmpty()) sb.append('\n');
-                    sb.append(line);
+            Future<Void>   stdinFuture  = executor.submit(new StdinWriter(process.getOutputStream(), prompt, pipeStdin, replies));
+            Future<String> stdoutFuture = executor.submit(new StdoutReader(process.getInputStream(), tag, outputLine, dispatch, replies));
+
+            try {
+                executor.awaitTermination(120, TimeUnit.SECONDS);
+                String result = stdoutFuture.get();
+
+                boolean finished = process.waitFor(5, TimeUnit.SECONDS);
+                if (!finished) {
+                    process.destroyForcibly();
+                    String msg = "[" + tag + "] timed out after 120 s";
+                    outputLine.accept(msg);
+                    return msg;
                 }
-            }
+                if (process.exitValue() != 0) {
+                    onNonZeroExit.accept(process.exitValue());
+                }
+                return result;
 
-            if (stdinWriter != null) stdinWriter.join();
-
-            boolean finished = process.waitFor(120, TimeUnit.SECONDS);
-            if (!finished) {
+            } catch (TimeoutException e) {
                 process.destroyForcibly();
+                executor.shutdownNow();
                 String msg = "[" + tag + "] timed out after 120 s";
                 outputLine.accept(msg);
                 return msg;
             }
-            if (process.exitValue() != 0) {
-                onNonZeroExit.accept(process.exitValue());
-            }
-
-            String result = sb.toString().trim();
-            return result.isBlank() ? "[" + tag + "] no output" : result;
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -115,6 +89,8 @@ public final class ProcessRunner {
         } catch (Exception e) {
             onError.accept(e.getMessage());
             return "[" + tag + "] error: " + e.getMessage();
+        } finally {
+            executor.shutdownNow();
         }
     }
 }

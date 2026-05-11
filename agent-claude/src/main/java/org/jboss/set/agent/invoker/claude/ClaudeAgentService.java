@@ -14,6 +14,7 @@
 
 package org.jboss.set.agent.invoker.claude;
 
+import org.jboss.set.agent.invoker.agent.AgentEventDispatch;
 import org.jboss.set.agent.invoker.agent.AgentResponse;
 import org.jboss.set.agent.invoker.agent.AgentService;
 import org.jboss.set.agent.invoker.agent.ProcessRunner;
@@ -47,7 +48,7 @@ public class ClaudeAgentService implements AgentService {
         }
 
         String analysis = ProcessRunner.run(cmd, prompt != null ? prompt : "", true,
-                getName(), outputLine, Log.LOG::nonZeroExit, Log.LOG::invocationError);
+                getName(), outputLine, AgentEventDispatch.none(), Log.LOG::nonZeroExit, Log.LOG::invocationError);
         return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
     }
 }

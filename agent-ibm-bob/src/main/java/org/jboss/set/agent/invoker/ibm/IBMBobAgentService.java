@@ -14,6 +14,7 @@
 
 package org.jboss.set.agent.invoker.ibm;
 
+import org.jboss.set.agent.invoker.agent.AgentEventDispatch;
 import org.jboss.set.agent.invoker.agent.AgentResponse;
 import org.jboss.set.agent.invoker.agent.AgentService;
 import org.jboss.set.agent.invoker.agent.ProcessRunner;
@@ -44,7 +45,7 @@ public class IBMBobAgentService implements AgentService {
         if (!stdin) cmd.add(prompt != null ? prompt : "");
 
         String analysis = ProcessRunner.run(cmd, prompt != null ? prompt : "", stdin,
-                getName(), outputLine, Log.LOG::nonZeroExit, Log.LOG::invocationError);
+                getName(), outputLine, AgentEventDispatch.none(), Log.LOG::nonZeroExit, Log.LOG::invocationError);
         return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
     }
 }
