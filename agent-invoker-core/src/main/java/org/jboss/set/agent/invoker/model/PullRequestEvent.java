@@ -25,4 +25,11 @@ public record PullRequestEvent(
     int     prNumber,
     String  url,
     String  action
-) implements ApplicationEvent {}
+) implements ApplicationEvent {
+
+    @Override
+    public String toString() {
+        return "Pull Request #" + prNumber + " (" + action + ") in " + owner + "/" + repo + "\n" +
+               "URL: " + url;
+    }
+}

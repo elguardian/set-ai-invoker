@@ -30,4 +30,18 @@ public record JiraIssueEvent(
     String  qeAck,
     String  targetRelease,
     String  affectedVersion
-) implements ApplicationEvent {}
+) implements ApplicationEvent {
+
+    @Override
+    public String toString() {
+        return "Jira Issue " + issueKey + "\n" +
+               "Summary: "          + summary         + "\n" +
+               "Status: "           + status           + "\n" +
+               "Priority: "         + priority         + "\n" +
+               "Reporter: "         + reporter         + "\n" +
+               "Assignee: "         + assignee         + "\n" +
+               "PM Ack: "           + pmAck  + "  Dev Ack: " + devAck + "  QE Ack: " + qeAck + "\n" +
+               "Target Release: "   + targetRelease    + "\n" +
+               "Affected Version: " + affectedVersion;
+    }
+}
