@@ -14,22 +14,16 @@
 
 package org.jboss.set.agent.invoker.claude;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
+import org.jboss.set.agent.invoker.agent.AgentResponse;
+import org.jboss.set.agent.invoker.agent.AgentService;
+import org.jboss.set.agent.invoker.agent.ProcessRunner;
+import org.jboss.set.agent.invoker.model.ApplicationEvent;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
-
-import org.jboss.set.agent.invoker.agent.AgentResponse;
-import org.jboss.set.agent.invoker.agent.AgentService;
-import org.jboss.set.agent.invoker.model.ApplicationEvent;
 
 import static java.util.stream.Collectors.toCollection;
 
@@ -42,62 +36,18 @@ public class ClaudeAgentService implements AgentService {
 
     @Override
     public AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine) {
-        String analysis = invokeClaudeCLI(prompt != null ? prompt : "", outputLine);
-        return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
-    }
-
-    private String invokeClaudeCLI(String prompt, Consumer<String> outputLine) {
         String command = System.getenv().getOrDefault("CLAUDE_COMMAND", "claude");
         String model   = System.getenv("CLAUDE_MODEL");
-        try {
-            List<String> args = Stream.of(command, "--verbose", "--print", "--output-format", "stream-json").collect(toCollection(ArrayList::new));
-            if(model != null) {
-                args.add("-m");
-                args.add(model);
-            }
-            ProcessBuilder pb = new ProcessBuilder(args);
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
 
-            CompletableFuture<Void> stdinWriter = CompletableFuture.runAsync(() -> {
-                try (OutputStream os = process.getOutputStream()) {
-                    os.write(prompt.getBytes(StandardCharsets.UTF_8));
-                } catch (IOException ignored) {}
-            });
-
-            StringBuilder sb = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    outputLine.accept(line);
-                    if (!sb.isEmpty()) sb.append('\n');
-                    sb.append(line);
-                }
-            }
-            stdinWriter.join();
-
-            boolean finished = process.waitFor(120, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                String msg = "[claude] timed out after 120 s";
-                outputLine.accept(msg);
-                return msg;
-            }
-            if (process.exitValue() != 0) {
-                Log.LOG.nonZeroExit(process.exitValue());
-            }
-
-            String result = sb.toString().trim();
-            return result.isBlank() ? "[claude] no output" : result;
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return "[claude] interrupted";
-        } catch (Exception e) {
-            Log.LOG.invocationError(e.getMessage());
-            return "[claude] error: " + e.getMessage();
+        List<String> cmd = Stream.of(command, "--verbose", "--print", "--output-format", "stream-json")
+                .collect(toCollection(ArrayList::new));
+        if (model != null) {
+            cmd.add("-m");
+            cmd.add(model);
         }
-    }
 
+        String analysis = ProcessRunner.run(cmd, prompt != null ? prompt : "", true,
+                getName(), outputLine, Log.LOG::nonZeroExit, Log.LOG::invocationError);
+        return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
+    }
 }

@@ -75,12 +75,7 @@ public class TerminalOutput {
 
     /** Called for each streamed line of agent output. */
     public void agentLine(String agentName, String line) {
-        out.println(new AttributedStringBuilder()
-            .style(AttributedStyle.DEFAULT.foreground(AttributedStyle.MAGENTA))
-            .append("  [" + agentName + "] ")
-            .style(AttributedStyle.DEFAULT)
-            .append(line)
-            .toAnsi(terminal));
+        out.println(line);
         terminal.flush();
     }
 
