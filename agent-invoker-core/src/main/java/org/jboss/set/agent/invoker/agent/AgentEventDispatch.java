@@ -35,8 +35,11 @@ public interface AgentEventDispatch {
      */
     Optional<String> dispatch(JsonNode event);
 
-    /** No-op dispatch that never replies to stdin. */
+    /** Logs each event at DEBUG level and never replies to stdin. */
     static AgentEventDispatch none() {
-        return event -> Optional.empty();
+        return event -> {
+            Log.LOG.noHandlerForEvent(event.toString());
+            return Optional.of("continue");
+        };
     }
 }

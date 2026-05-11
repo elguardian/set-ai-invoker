@@ -14,10 +14,10 @@
 
 package org.jboss.set.agent.invoker.claude;
 
-import org.jboss.set.agent.invoker.agent.AgentEventDispatch;
+import org.jboss.set.agent.invoker.agent.AgentProcessRunner;
+import org.jboss.set.agent.invoker.agent.AgentProcessRunnerParameters;
 import org.jboss.set.agent.invoker.agent.AgentResponse;
 import org.jboss.set.agent.invoker.agent.AgentService;
-import org.jboss.set.agent.invoker.agent.ProcessRunner;
 import org.jboss.set.agent.invoker.model.ApplicationEvent;
 
 import java.time.Instant;
@@ -47,8 +47,14 @@ public class ClaudeAgentService implements AgentService {
             cmd.add(model);
         }
 
-        String analysis = ProcessRunner.run(cmd, prompt != null ? prompt : "", true,
-                getName(), outputLine, AgentEventDispatch.none(), Log.LOG::nonZeroExit, Log.LOG::invocationError);
+        String analysis = AgentProcessRunner.run(
+                AgentProcessRunnerParameters.builder()
+                        .command(cmd)
+                        .prompt(prompt != null ? prompt : "")
+                        .pipeStdin(true)
+                        .tag(getName())
+                        .outputLine(outputLine)
+                        .build());
         return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
     }
 }

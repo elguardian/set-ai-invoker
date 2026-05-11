@@ -60,7 +60,7 @@ public final class StdoutReader implements Callable<String> {
                 sb.append(line);
             }
         } finally {
-            replies.offer(ProcessRunner.DONE);
+            replies.offer(AgentProcessRunner.DONE);
         }
         String result = sb.toString().trim();
         return result.isBlank() ? "[" + tag + "] no output" : result;
@@ -71,7 +71,7 @@ public final class StdoutReader implements Callable<String> {
         char first = line.stripLeading().charAt(0);
         if (first != '{' && first != '[') return;
         try {
-            JsonNode event = ProcessRunner.PRETTY.readTree(line);
+            JsonNode event = AgentProcessRunner.PRETTY.readTree(line);
             dispatch.dispatch(event).ifPresent(reply -> replies.offer(Optional.of(reply)));
         } catch (Exception ignored) {}
     }
@@ -87,9 +87,9 @@ public final class StdoutReader implements Callable<String> {
             return;
         }
         try {
-            JsonNode node = ProcessRunner.PRETTY.readTree(line);
+            JsonNode node = AgentProcessRunner.PRETTY.readTree(line);
             outputLine.accept("[" + tag + "]");
-            for (String prettyLine : ProcessRunner.PRETTY.writeValueAsString(node).split("\n")) {
+            for (String prettyLine : AgentProcessRunner.PRETTY.writeValueAsString(node).split("\n")) {
                 outputLine.accept(prettyLine);
             }
         } catch (Exception e) {

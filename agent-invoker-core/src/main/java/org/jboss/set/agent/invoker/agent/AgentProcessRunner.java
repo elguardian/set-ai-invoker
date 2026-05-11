@@ -17,7 +17,6 @@ package org.jboss.set.agent.invoker.agent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -25,45 +24,42 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
-import java.util.function.IntConsumer;
 
 /**
  * Shared process execution helper for CLI-based agent implementations.
  *
- * <p>Starts {@code command} and runs two concurrent tasks: {@link StdinWriter} pipes
- * the prompt (and any inline replies from {@link AgentEventDispatch}) to stdin, while
- * {@link StdoutReader} streams stdout lines through the dispatch and to the console.
+ * <p>Starts the command from {@link AgentProcessRunnerParameters} and runs two concurrent
+ * tasks: {@link StdinWriter} pipes the prompt (and any inline replies from
+ * {@link AgentEventDispatch}) to stdin, while {@link StdoutReader} streams stdout lines
+ * through the dispatch and to the console.
  */
-public final class ProcessRunner {
+public final class AgentProcessRunner {
 
     static final ObjectMapper PRETTY = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     /** Sentinel placed in the reply queue by {@link StdoutReader} to signal {@link StdinWriter} to close. */
     static final Optional<String> DONE = Optional.empty();
 
-    private ProcessRunner() {}
+    private AgentProcessRunner() {}
 
-    public static String run(List<String> command, String prompt, boolean pipeStdin,
-                             String tag, Consumer<String> outputLine, AgentEventDispatch dispatch,
-                             IntConsumer onNonZeroExit, Consumer<String> onError) {
+    public static String run(AgentProcessRunnerParameters params) {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
+            ProcessBuilder pb = new ProcessBuilder(params.command());
             pb.redirectErrorStream(true);
             Process process = pb.start();
 
             BlockingQueue<Optional<String>> replies = new LinkedBlockingQueue<>();
 
-            Future<Void>   stdinFuture  = executor.submit(new StdinWriter(process.getOutputStream(), prompt, pipeStdin, replies));
-            Future<String> stdoutFuture = executor.submit(new StdoutReader(process.getInputStream(), tag, outputLine, dispatch, replies));
+            Future<Void>   stdinFuture  = executor.submit(new StdinWriter(process.getOutputStream(), params.prompt(), params.pipeStdin(), replies));
+            Future<String> stdoutFuture = executor.submit(new StdoutReader(process.getInputStream(), params.tag(), params.outputLine(), params.dispatch(), replies));
+            executor.shutdown();
 
             if (!executor.awaitTermination(120, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
                 executor.shutdownNow();
-                String msg = "[" + tag + "] timed out after 120 s";
-                outputLine.accept(msg);
+                String msg = "[" + params.tag() + "] timed out after 120 s";
+                params.outputLine().accept(msg);
                 return msg;
             }
 
@@ -72,22 +68,21 @@ public final class ProcessRunner {
             boolean finished = process.waitFor(5, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
-                String msg = "[" + tag + "] timed out after 120 s";
-                outputLine.accept(msg);
+                String msg = "[" + params.tag() + "] timed out after 120 s";
+                params.outputLine().accept(msg);
                 return msg;
             }
             if (process.exitValue() != 0) {
-                onNonZeroExit.accept(process.exitValue());
+                Log.LOG.nonZeroExit(process.exitValue());
             }
             return result;
 
-
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return "[" + tag + "] interrupted";
+            return "[" + params.tag() + "] interrupted";
         } catch (Exception e) {
-            onError.accept(e.getMessage());
-            return "[" + tag + "] error: " + e.getMessage();
+            Log.LOG.invocationError(e.getMessage());
+            return "[" + params.tag() + "] error: " + e.getMessage();
         } finally {
             executor.shutdownNow();
         }
