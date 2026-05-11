@@ -1,3 +1,12 @@
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
 # Maven
 target/
 pom.xml.tag
@@ -7,6 +16,7 @@ pom.xml.next
 release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
+.flattened-pom.xml
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
@@ -15,7 +25,10 @@ buildNumber.properties
 .classpath
 .settings/
 .factorypath
+.springBeans
+.sts4-cache/
 bin/
+*.launch
 
 # IntelliJ IDEA
 .idea/
