@@ -51,7 +51,7 @@ public final class AgentProcessRunner {
 
             BlockingQueue<Optional<String>> replies = new LinkedBlockingQueue<>();
 
-            Future<Void>   stdinFuture  = executor.submit(new StdinWriter(process.getOutputStream(), params.prompt(), params.pipeStdin(), replies));
+            Future<Void>   stdinFuture  = executor.submit(new StdinWriter(process.getOutputStream(), params.prompt(), params.pipeStdin(), params.interactiveStdin(), replies));
             Future<String> stdoutFuture = executor.submit(new StdoutReader(process.getInputStream(), params.tag(), params.outputLine(), params.dispatch(), replies));
             executor.shutdown();
 

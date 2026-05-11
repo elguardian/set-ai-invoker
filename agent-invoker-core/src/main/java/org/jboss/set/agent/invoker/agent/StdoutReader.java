@@ -72,7 +72,9 @@ public final class StdoutReader implements Callable<String> {
         if (first != '{' && first != '[') return;
         try {
             JsonNode event = AgentProcessRunner.PRETTY.readTree(line);
-            dispatch.dispatch(event).ifPresent(reply -> replies.offer(Optional.of(reply)));
+            DispatchResult result = dispatch.dispatch(event);
+            if (result.isReply()) replies.offer(Optional.of(result.text()));
+            else if (result.isDone()) replies.offer(AgentProcessRunner.DONE);
         } catch (Exception ignored) {}
     }
 

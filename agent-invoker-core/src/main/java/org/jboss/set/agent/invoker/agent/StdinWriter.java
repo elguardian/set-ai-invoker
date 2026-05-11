@@ -30,14 +30,16 @@ public final class StdinWriter implements Callable<Void> {
     private final OutputStream stdin;
     private final String prompt;
     private final boolean pipeStdin;
+    private final boolean interactiveStdin;
     private final BlockingQueue<Optional<String>> replies;
 
-    public StdinWriter(OutputStream stdin, String prompt, boolean pipeStdin,
+    public StdinWriter(OutputStream stdin, String prompt, boolean pipeStdin, boolean interactiveStdin,
                        BlockingQueue<Optional<String>> replies) {
-        this.stdin     = stdin;
-        this.prompt    = prompt;
-        this.pipeStdin = pipeStdin;
-        this.replies   = replies;
+        this.stdin           = stdin;
+        this.prompt          = prompt;
+        this.pipeStdin       = pipeStdin;
+        this.interactiveStdin = interactiveStdin;
+        this.replies         = replies;
     }
 
     @Override
@@ -46,18 +48,17 @@ public final class StdinWriter implements Callable<Void> {
             if (pipeStdin) {
                 os.write(prompt.getBytes(StandardCharsets.UTF_8));
                 os.flush();
+                if (interactiveStdin) {
+                    while (!Thread.currentThread().isInterrupted()) {
+                        Optional<String> reply = replies.take();
+                        if (reply.isEmpty()) break;
+                        os.write(reply.get().getBytes(StandardCharsets.UTF_8));
+                        os.flush();
+                    }
+                }
+                // else: stdin closed immediately by try-with-resources, sending EOF to the process
             }
-            // stdin closed here via try-with-resources, sending EOF to the process
-        } catch (IOException e) {
-            Thread.currentThread().interrupt();
-        }
-        // Drain replies queue until StdoutReader signals DONE
-        try {
-            while (!Thread.currentThread().isInterrupted()) {
-                Optional<String> reply = replies.take();
-                if (reply.isEmpty()) break;
-            }
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             Thread.currentThread().interrupt();
         }
         return null;

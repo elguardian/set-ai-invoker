@@ -16,8 +16,6 @@ package org.jboss.set.agent.invoker.agent;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import java.util.Optional;
-
 /**
  * Handles individual events streamed from an agent process stdout.
  *
@@ -31,15 +29,15 @@ public interface AgentEventDispatch {
      * Called for each JSON event parsed from the process stdout.
      *
      * @param event the parsed JSON event
-     * @return a non-empty Optional if a reply should be written to stdin
+     * @return a {@link DispatchResult} indicating whether to reply, close stdin, or do nothing
      */
-    Optional<String> dispatch(JsonNode event);
+    DispatchResult dispatch(JsonNode event);
 
     /** Logs each event at DEBUG level and never replies to stdin. */
     static AgentEventDispatch none() {
         return event -> {
             Log.LOG.noHandlerForEvent(event.toString());
-            return Optional.of("continue");
+            return DispatchResult.skip();
         };
     }
 }

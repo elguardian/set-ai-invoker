@@ -32,4 +32,12 @@ interface Log extends BasicLogger {
     @LogMessage(level = Logger.Level.WARN)
     @Message(id = 2, value = "Failed to invoke claude CLI: %s")
     void invocationError(String message);
+
+    @LogMessage(level = Logger.Level.DEBUG)
+    @Message(id = 3, value = "Claude turn complete: %s")
+    void turnComplete(String subtype);
+
+    @LogMessage(level = Logger.Level.DEBUG)
+    @Message(id = 4, value = "Claude tool use: %s")
+    void toolUseEvent(String toolName);
 }

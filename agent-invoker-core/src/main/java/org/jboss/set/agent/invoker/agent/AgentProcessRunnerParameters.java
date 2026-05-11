@@ -26,25 +26,29 @@ public final class AgentProcessRunnerParameters {
     private final List<String>       command;
     private final String             prompt;
     private final boolean            pipeStdin;
+    private final boolean            interactiveStdin;
     private final String             tag;
     private final Consumer<String>   outputLine;
     private final AgentEventDispatch dispatch;
 
     private AgentProcessRunnerParameters(Builder b) {
-        this.command    = List.copyOf(b.command);
-        this.prompt     = b.prompt != null ? b.prompt : "";
-        this.pipeStdin  = b.pipeStdin;
-        this.tag        = b.tag;
-        this.outputLine = b.outputLine;
-        this.dispatch   = b.dispatch != null ? b.dispatch : AgentEventDispatch.none();
+        this.command          = List.copyOf(b.command);
+        this.prompt           = b.prompt != null ? b.prompt : "";
+        this.pipeStdin        = b.pipeStdin;
+        this.interactiveStdin = b.interactiveStdin;
+        this.tag              = b.tag;
+        this.outputLine       = b.outputLine;
+        this.dispatch         = b.dispatch != null ? b.dispatch : AgentEventDispatch.none();
     }
 
-    public List<String>       command()    { return command; }
-    public String             prompt()     { return prompt; }
-    public boolean            pipeStdin()  { return pipeStdin; }
-    public String             tag()        { return tag; }
-    public Consumer<String>   outputLine() { return outputLine; }
-    public AgentEventDispatch dispatch()   { return dispatch; }
+    public List<String>       command()          { return command; }
+    public String             prompt()           { return prompt; }
+    public boolean            pipeStdin()        { return pipeStdin; }
+    /** When true, stdin stays open after the initial prompt to allow inline replies. */
+    public boolean            interactiveStdin() { return interactiveStdin; }
+    public String             tag()              { return tag; }
+    public Consumer<String>   outputLine()       { return outputLine; }
+    public AgentEventDispatch dispatch()         { return dispatch; }
 
     public static Builder builder() {
         return new Builder();
@@ -55,18 +59,20 @@ public final class AgentProcessRunnerParameters {
         private List<String>       command;
         private String             prompt;
         private boolean            pipeStdin;
+        private boolean            interactiveStdin;
         private String             tag;
         private Consumer<String>   outputLine;
         private AgentEventDispatch dispatch;
 
         private Builder() {}
 
-        public Builder command(List<String> command)           { this.command    = command;    return this; }
-        public Builder prompt(String prompt)                   { this.prompt     = prompt;     return this; }
-        public Builder pipeStdin(boolean pipeStdin)            { this.pipeStdin  = pipeStdin;  return this; }
-        public Builder tag(String tag)                         { this.tag        = tag;        return this; }
-        public Builder outputLine(Consumer<String> outputLine) { this.outputLine = outputLine; return this; }
-        public Builder dispatch(AgentEventDispatch dispatch)   { this.dispatch   = dispatch;   return this; }
+        public Builder command(List<String> command)                   { this.command          = command;          return this; }
+        public Builder prompt(String prompt)                           { this.prompt           = prompt;           return this; }
+        public Builder pipeStdin(boolean pipeStdin)                    { this.pipeStdin        = pipeStdin;        return this; }
+        public Builder interactiveStdin(boolean interactiveStdin)      { this.interactiveStdin = interactiveStdin; return this; }
+        public Builder tag(String tag)                                 { this.tag              = tag;              return this; }
+        public Builder outputLine(Consumer<String> outputLine)         { this.outputLine       = outputLine;       return this; }
+        public Builder dispatch(AgentEventDispatch dispatch)           { this.dispatch         = dispatch;         return this; }
 
         public AgentProcessRunnerParameters build() {
             if (command == null || command.isEmpty()) throw new IllegalStateException("command is required");

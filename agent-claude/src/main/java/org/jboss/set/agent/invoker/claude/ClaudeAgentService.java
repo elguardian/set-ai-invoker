@@ -54,6 +54,7 @@ public class ClaudeAgentService implements AgentService {
                         .pipeStdin(true)
                         .tag(getName())
                         .outputLine(outputLine)
+                        .dispatch(new ClaudeAgentEventDispatch())
                         .build());
         return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
     }
