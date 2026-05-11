@@ -46,14 +46,18 @@ public final class StdinWriter implements Callable<Void> {
             if (pipeStdin) {
                 os.write(prompt.getBytes(StandardCharsets.UTF_8));
                 os.flush();
-                while (!Thread.currentThread().isInterrupted()) {
-                    Optional<String> reply = replies.take();
-                    if (reply.isEmpty()) break;
-                    os.write(reply.get().getBytes(StandardCharsets.UTF_8));
-                    os.flush();
-                }
             }
-        } catch (IOException | InterruptedException e) {
+            // stdin closed here via try-with-resources, sending EOF to the process
+        } catch (IOException e) {
+            Thread.currentThread().interrupt();
+        }
+        // Drain replies queue until StdoutReader signals DONE
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                Optional<String> reply = replies.take();
+                if (reply.isEmpty()) break;
+            }
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
         return null;
