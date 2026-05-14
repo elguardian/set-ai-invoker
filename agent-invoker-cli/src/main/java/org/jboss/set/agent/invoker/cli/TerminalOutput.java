@@ -71,6 +71,7 @@ public class TerminalOutput {
             .style(AttributedStyle.DEFAULT)
             .append(label)
             .toAnsi(terminal));
+        terminal.flush();
     }
 
     /** Called for each streamed line of agent output. */
@@ -82,6 +83,7 @@ public class TerminalOutput {
     public void printResponse(AgentResponse response) {
         out.println(response.analysis());
         out.println();
+        terminal.flush();
     }
 
     public void printConfig(URI configUri, List<EventSourceConfig> entries) {
