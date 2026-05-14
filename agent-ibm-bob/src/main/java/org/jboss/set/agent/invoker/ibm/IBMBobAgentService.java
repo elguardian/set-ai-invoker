@@ -14,6 +14,8 @@
 
 package org.jboss.set.agent.invoker.ibm;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jboss.set.agent.invoker.agent.AgentProcessRunner;
 import org.jboss.set.agent.invoker.agent.AgentProcessRunnerParameters;
 import org.jboss.set.agent.invoker.agent.AgentResponse;
@@ -21,10 +23,13 @@ import org.jboss.set.agent.invoker.agent.AgentService;
 import org.jboss.set.agent.invoker.model.ApplicationEvent;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 public class IBMBobAgentService implements AgentService {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Override
     public String getName() {
@@ -33,15 +38,61 @@ public class IBMBobAgentService implements AgentService {
 
     @Override
     public AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine, boolean verbose) {
-        String command = System.getenv().getOrDefault("IBM_BOB_COMMAND", "bob");
+        String command      = System.getenv().getOrDefault("IBM_BOB_COMMAND", "bob");
+        String model        = System.getenv().get("IBM_BOB_MODEL");
+        String allowedTools = System.getenv().get("IBM_BOB_ALLOWED_TOOLS");
+        String chatMode     = System.getenv().get("IBM_BOB_CHAT_MODE");
+
+        List<String> cmd = new ArrayList<>();
+        cmd.add(command);
+        cmd.add("-p");
+        cmd.add(prompt != null ? prompt : "");
+        if (verbose) {
+            cmd.add("--output-format");
+            cmd.add("stream-json");
+        }
+        if (allowedTools != null && !allowedTools.isBlank()) {
+            cmd.add("--allowed-tools");
+            cmd.add(allowedTools);
+        }
+        if (chatMode != null && !chatMode.isBlank()) {
+            cmd.add("--chat-mode");
+            cmd.add(chatMode);
+        }
+        if (model != null && !model.isBlank()) {
+            cmd.add("--model");
+            cmd.add(model);
+        }
 
         String analysis = AgentProcessRunner.run(
                 AgentProcessRunnerParameters.builder()
-                        .command(List.of(command, "-p", prompt != null ? prompt : ""))
+                        .command(cmd)
                         .pipeStdin(false)
                         .tag(getName())
                         .outputLine(outputLine)
+                        .dispatch(new IBMBobAgentEventDispatch())
                         .build());
-        return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
+
+        String text = verbose ? extractResultText(analysis) : analysis;
+        return new AgentResponse(getName(), event.eventId(),
+                text.isBlank() ? "[ibm-bob] no output" : text, Instant.now());
+    }
+
+    private static String extractResultText(String streamJson) {
+        StringBuilder assembled = new StringBuilder();
+        for (String line : streamJson.split("\n")) {
+            try {
+                JsonNode node = MAPPER.readTree(line);
+                String type = node.path("type").asText();
+                if ("result".equals(type)) {
+                    String result = node.path("result").asText();
+                    if (!result.isBlank()) return result;
+                } else if ("message".equals(type) && node.path("delta").asBoolean()) {
+                    assembled.append(node.path("content").asText());
+                }
+            } catch (Exception ignored) {}
+        }
+        String text = assembled.toString().trim();
+        return text.isBlank() ? streamJson : text;
     }
 }
