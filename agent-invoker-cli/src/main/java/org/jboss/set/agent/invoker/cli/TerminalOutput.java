@@ -80,7 +80,7 @@ public class TerminalOutput {
     }
 
     public void printResponse(AgentResponse response) {
-        // Summary line after streaming is complete
+        out.println(response.analysis());
         out.println();
     }
 

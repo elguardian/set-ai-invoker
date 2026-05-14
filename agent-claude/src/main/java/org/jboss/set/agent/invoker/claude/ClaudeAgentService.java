@@ -14,6 +14,8 @@
 
 package org.jboss.set.agent.invoker.claude;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jboss.set.agent.invoker.agent.AgentProcessRunner;
 import org.jboss.set.agent.invoker.agent.AgentProcessRunnerParameters;
 import org.jboss.set.agent.invoker.agent.AgentResponse;
@@ -26,6 +28,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class ClaudeAgentService implements AgentService {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Override
     public String getName() {
@@ -63,7 +67,21 @@ public class ClaudeAgentService implements AgentService {
                         .dispatch(new ClaudeAgentEventDispatch())
                         .build());
 
+        String text = verbose ? extractResultText(analysis) : analysis;
         return new AgentResponse(getName(), event.eventId(),
-                analysis.isBlank() ? "[claude] no output" : analysis, Instant.now());
+                text.isBlank() ? "[claude] no output" : text, Instant.now());
+    }
+
+    private static String extractResultText(String streamJson) {
+        for (String line : streamJson.split("\n")) {
+            try {
+                JsonNode node = MAPPER.readTree(line);
+                if ("result".equals(node.path("type").asText())) {
+                    String result = node.path("result").asText();
+                    if (!result.isBlank()) return result;
+                }
+            } catch (Exception ignored) {}
+        }
+        return streamJson;
     }
 }
