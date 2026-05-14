@@ -30,6 +30,9 @@ public interface AgentService {
     /**
      * Processes an event, streaming each output line to {@code outputLine} as it arrives.
      * Returns the full accumulated analysis once the agent process completes.
+     *
+     * @param verbose when true, passes verbose flags to the underlying agent CLI and allows
+     *                the caller to display streamed output
      */
-    AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine);
+    AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine, boolean verbose);
 }

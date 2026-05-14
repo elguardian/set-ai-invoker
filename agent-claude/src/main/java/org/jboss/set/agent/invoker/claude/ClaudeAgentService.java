@@ -24,9 +24,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.toCollection;
 
 public class ClaudeAgentService implements AgentService {
 
@@ -36,26 +33,37 @@ public class ClaudeAgentService implements AgentService {
     }
 
     @Override
-    public AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine) {
-        String command = System.getenv().getOrDefault("CLAUDE_COMMAND", "claude");
-        String model   = System.getenv("CLAUDE_MODEL");
+    public AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine, boolean verbose) {
+        String command      = System.getenv().getOrDefault("CLAUDE_COMMAND", "claude");
+        String model        = System.getenv().get("CLAUDE_MODEL");
+        String allowedTools = System.getenv().getOrDefault("CLAUDE_ALLOWED_TOOLS", "Bash,WebSearch,Read");
 
-        List<String> cmd = Stream.of(command, "--verbose", "--print", "--output-format", "stream-json")
-                .collect(toCollection(ArrayList::new));
-        if (model != null) {
-            cmd.add("-m");
+        List<String> cmd = new ArrayList<>();
+        cmd.add(command);
+        cmd.add("-p");
+        cmd.add(prompt != null ? prompt : "");
+        if (verbose) {
+            cmd.add("--verbose");
+            cmd.add("--output-format");
+            cmd.add("stream-json");
+        }
+        cmd.add("--allowedTools");
+        cmd.add(allowedTools);
+        if (model != null && !model.isBlank()) {
+            cmd.add("--model");
             cmd.add(model);
         }
 
         String analysis = AgentProcessRunner.run(
                 AgentProcessRunnerParameters.builder()
                         .command(cmd)
-                        .prompt(prompt != null ? prompt : "")
-                        .pipeStdin(true)
+                        .pipeStdin(false)
                         .tag(getName())
                         .outputLine(outputLine)
                         .dispatch(new ClaudeAgentEventDispatch())
                         .build());
-        return new AgentResponse(getName(), event.eventId(), analysis, Instant.now());
+
+        return new AgentResponse(getName(), event.eventId(),
+                analysis.isBlank() ? "[claude] no output" : analysis, Instant.now());
     }
 }

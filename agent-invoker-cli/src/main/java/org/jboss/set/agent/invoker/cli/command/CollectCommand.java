@@ -32,6 +32,7 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParentCommand;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 @Command(name = "collect", description = "Collect events and process with agent")
 public class CollectCommand implements Runnable {
@@ -84,7 +85,10 @@ public class CollectCommand implements Runnable {
             for (ApplicationEvent event : events) {
                 root.out.printEvent(++i, events.size(), event);
                 try {
-                    AgentResponse resp = agent.process(event, prompt.replace("[event]", event.toString()), l -> root.out.agentLine(agent.getName(), l));
+                    Consumer<String> sink = root.verbose
+                            ? l -> root.out.agentLine(agent.getName(), l)
+                            : l -> {};
+                    AgentResponse resp = agent.process(event, prompt.replace("[event]", event.toString()), sink, root.verbose);
                     root.out.printResponse(resp);
                 } catch (Exception e) {
                     root.out.error("Agent error: " + e.getMessage());

@@ -21,8 +21,6 @@ import org.jboss.set.agent.invoker.agent.AgentService;
 import org.jboss.set.agent.invoker.model.ApplicationEvent;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -34,21 +32,13 @@ public class IBMBobAgentService implements AgentService {
     }
 
     @Override
-    public AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine) {
-        String command = System.getenv().getOrDefault("IBM_BOB_COMMAND", "ibmcloud");
-        String argsEnv = System.getenv().getOrDefault("IBM_BOB_ARGS", "ml,text-generation,--input");
-        boolean stdin  = "true".equalsIgnoreCase(System.getenv("IBM_BOB_STDIN"));
-
-        List<String> cmd = new ArrayList<>();
-        cmd.add(command);
-        Arrays.stream(argsEnv.split(",")).map(String::trim).filter(s -> !s.isEmpty()).forEach(cmd::add);
-        if (!stdin) cmd.add(prompt != null ? prompt : "");
+    public AgentResponse process(ApplicationEvent event, String prompt, Consumer<String> outputLine, boolean verbose) {
+        String command = System.getenv().getOrDefault("IBM_BOB_COMMAND", "bob");
 
         String analysis = AgentProcessRunner.run(
                 AgentProcessRunnerParameters.builder()
-                        .command(cmd)
-                        .prompt(prompt != null ? prompt : "")
-                        .pipeStdin(stdin)
+                        .command(List.of(command, "-p", prompt != null ? prompt : ""))
+                        .pipeStdin(false)
                         .tag(getName())
                         .outputLine(outputLine)
                         .build());

@@ -150,6 +150,7 @@ config agent show
 |---|---|---|
 | `CLAUDE_COMMAND` | `claude` | Path or name of the Claude CLI binary |
 | `CLAUDE_MODEL` | _(unset)_ | Model override (e.g. `claude-opus-4-7`) |
+| `CLAUDE_ALLOWED_TOOLS` | `Bash,WebSearch,Read` | Comma-separated list of tools Claude may use without prompting |
 
 ### IBM BOB agent environment variables
 

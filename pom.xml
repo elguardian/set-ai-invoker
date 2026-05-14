@@ -35,7 +35,8 @@
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jackson.version>2.18.0</jackson.version>
+        <jackson.version>2.18.2</jackson.version>
+        <anthropic-java.version>2.30.0</anthropic-java.version>
         <jline.version>3.25.1</jline.version>
         <jboss-logging.version>3.5.3.Final</jboss-logging.version>
         <jboss-logging-annotations.version>2.2.1.Final</jboss-logging-annotations.version>
@@ -99,6 +100,11 @@
                 <groupId>org.jboss.set</groupId>
                 <artifactId>agent-ibm-bob</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.anthropic</groupId>
+                <artifactId>anthropic-java</artifactId>
+                <version>${anthropic-java.version}</version>
             </dependency>
             <!-- external -->
             <dependency>

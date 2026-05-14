@@ -57,13 +57,15 @@ public class CompanionCLI implements Runnable {
     @Option(names = "--store-uri",
         description = "Base storage folder (filesystem path or GitHub repo URL + path)")
     String storeUriOpt;
+    @Option(names = "--verbose", description = "Stream agent events to the terminal") boolean verboseOpt;
 
     // Session state — NOT @Option, set once at startup and never reset by Picocli
-    public URI    configUri;
-    public URI    stateUri;
-    public String storeImpl;
-    public String marshallerImpl;
-    public String agentName;
+    public URI     configUri;
+    public URI     stateUri;
+    public String  storeImpl;
+    public String  marshallerImpl;
+    public String  agentName;
+    public boolean verbose;
 
     // Immutable infrastructure
     public final AgentInvokerService service;
@@ -93,6 +95,7 @@ public class CompanionCLI implements Runnable {
         if (storeOpt      != null) storeImpl      = storeOpt;
         if (marshallerOpt != null) marshallerImpl  = marshallerOpt;
         if (agentOpt      != null) agentName       = agentOpt;
+        if (verboseOpt)            verbose         = true;
         if (storeUriOpt != null) {
             String base = storeUriOpt.endsWith("/") ? storeUriOpt : storeUriOpt + "/";
             configUri = parseUri(base + "companion-config.json");
